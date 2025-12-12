@@ -46,8 +46,7 @@ async function saveQuizToDatabase(content, title = null) {
     if (!db) await initDatabase();
     
     const hash = generateQuizHash(content);
-    cosaveQuizBtn = document.getElementById('save-quiz-btn');
-const nst timestamp = new Date().toISOString();
+    const timestamp = new Date().toISOString();
     
     // Check for duplicates
     const existing = await getQuizByHash(hash);
@@ -229,6 +228,7 @@ const scoreSpan = document.getElementById('score');
 const totalSpan = document.getElementById('total');
 const scorePercentage = document.getElementById('score-percentage');
 const reviewContainer = document.getElementById('review-container');
+const saveQuizBtn = document.getElementById('save-quiz-btn');
 
 // Event Listeners
 saveQuizBtn.addEventListener('click', saveQuiz);
@@ -514,14 +514,9 @@ function displayResults(correctCount) {
                     <strong>Correct answer:</strong> ${correctAnswer}${renderMath(correctAnswerHTML)}
                 </div>
             ` : '<div style="color: #28a745; font-weight: 600; margin-top: 10px;">✓ Correct!</div>'}
-   Initialize on page load
-window.addEventListener('load', async () => {
-    try {
-        await initDatabase();
-        await displaySavedQuizzes();
-    } catch (error) {
-        console.error('Error initializing database:', error);
-    }
+        `;
+        
+        reviewContainer.appendChild(reviewItem);
     });
 }
 
@@ -542,7 +537,12 @@ function restartQuiz() {
     inputSection.classList.remove('hidden');
 }
 
-// Load sample data on page load (optional)
-window.addEventListener('load', () => {
-    // You can pre-populate with sample data here if needed
+// Initialize on page load
+window.addEventListener('load', async () => {
+    try {
+        await initDatabase();
+        await displaySavedQuizzes();
+    } catch (error) {
+        console.error('Error initializing database:', error);
+    }
 });

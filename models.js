@@ -94,6 +94,7 @@ class StorageModel {
         this.sharedQuizzesUrl = 'shared-quizzes.json';
         this.firebaseInitialized = false;
         this.firebaseDb = null;
+        this.firebaseAuth = null;
         
         // Initialize Firebase
         this.initFirebase();
@@ -115,6 +116,7 @@ class StorageModel {
                 firebase.initializeApp(firebaseConfig);
             }
             this.firebaseDb = firebase.database();
+            this.firebaseAuth = firebase.auth();
             this.firebaseInitialized = true;
             console.log('Firebase initialized successfully');
         } catch (error) {
@@ -282,13 +284,20 @@ class StorageModel {
         }
         
         try {
+            // Authenticate anonymously if not already signed in
+            if (!this.firebaseAuth.currentUser) {
+                await this.firebaseAuth.signInAnonymously();
+                console.log('Authenticated anonymously');
+            }
+            
             const quizData = {
                 title: quiz.title,
                 content: quiz.content,
                 questions: quiz.questions,
                 answers: quiz.answers,
                 timestamp: new Date().toISOString(),
-                questionCount: quiz.questions.length
+                questionCount: quiz.questions.length,
+                publishedBy: this.firebaseAuth.currentUser.uid
             };
             
             const newQuizRef = await this.firebaseDb.ref('sharedQuizzes').push(quizData);
