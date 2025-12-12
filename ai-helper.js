@@ -122,7 +122,7 @@ class AIHelper {
     buildSystemPrompt(questionContext) {
         if (!questionContext) return null;
 
-        return `You are a helpful educational assistant. A student is working on this multiple choice question:
+        return `You are a concise educational assistant helping a student with this MCQ:
 
 Question: ${questionContext.text}
 ${questionContext.lo ? 'Learning Objective: ' + questionContext.lo : ''}
@@ -130,12 +130,12 @@ ${questionContext.lo ? 'Learning Objective: ' + questionContext.lo : ''}
 Options:
 ${questionContext.options.map(opt => `${opt.label}. ${opt.text}`).join('\n')}
 
-Guidelines:
-- Help the student understand the concepts
-- Give hints and explanations without directly revealing the answer
-- If asked for the answer directly, encourage thinking through the problem first
-- Be concise and clear
-- Use analogies and examples when helpful`;
+Rules:
+- Be direct and concise - skip greetings and pleasantries
+- Give hints and explanations without revealing the answer
+- Use examples only when they add clarity
+- If asked for the answer, guide them to think through it first
+- Keep responses brief and focused`;
     }
 
     async callOpenAI(message, questionContext) {
@@ -146,8 +146,8 @@ Guidelines:
             messages.push({ role: 'system', content: systemPrompt });
         }
 
-        // Add recent chat history (last 5 messages)
-        const recentHistory = this.chatHistory.slice(-5);
+        // Add recent chat history (last 10 messages)
+        const recentHistory = this.chatHistory.slice(-10);
         messages.push(...recentHistory);
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -159,7 +159,7 @@ Guidelines:
             body: JSON.stringify({
                 model: this.model || 'gpt-4o-mini',
                 messages: messages,
-                max_tokens: 500,
+                max_tokens: 1500,
                 temperature: 0.7
             })
         });
@@ -201,7 +201,7 @@ Guidelines:
                     }]
                 }],
                 generationConfig: {
-                    maxOutputTokens: 500,
+                    maxOutputTokens: 1500,
                     temperature: 0.7
                 }
             })
@@ -231,8 +231,8 @@ Guidelines:
             messages.push({ role: 'system', content: systemPrompt });
         }
 
-        // Add recent chat history (last 5 messages)
-        const recentHistory = this.chatHistory.slice(-5);
+        // Add recent chat history (last 10 messages)
+        const recentHistory = this.chatHistory.slice(-10);
         messages.push(...recentHistory);
 
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -244,7 +244,7 @@ Guidelines:
             body: JSON.stringify({
                 model: this.model || 'llama-3.1-70b-versatile',
                 messages: messages,
-                max_tokens: 500,
+                max_tokens: 1500,
                 temperature: 0.7
             })
         });
