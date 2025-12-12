@@ -79,6 +79,63 @@ class AIHelper {
         this.chatHistory = [];
     }
 
+    async fetchModelsFromAPI(provider, apiKey) {
+        try {
+            let response;
+            let models = [];
+
+            switch (provider) {
+                case 'openai':
+                    response = await fetch('https://api.openai.com/v1/models', {
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`
+                        }
+                    });
+                    if (!response.ok) throw new Error('Invalid API key or network error');
+                    const openaiData = await response.json();
+                    models = openaiData.data
+                        .filter(m => m.id.includes('gpt'))
+                        .map(m => ({ value: m.id, label: m.id }))
+                        .sort((a, b) => a.label.localeCompare(b.label));
+                    break;
+
+                case 'gemini':
+                    response = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + apiKey);
+                    if (!response.ok) throw new Error('Invalid API key or network error');
+                    const geminiData = await response.json();
+                    models = geminiData.models
+                        .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+                        .map(m => ({
+                            value: m.name.replace('models/', ''),
+                            label: m.displayName || m.name.replace('models/', '')
+                        }))
+                        .sort((a, b) => a.label.localeCompare(b.label));
+                    break;
+
+                case 'groq':
+                    response = await fetch('https://api.groq.com/openai/v1/models', {
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`
+                        }
+                    });
+                    if (!response.ok) throw new Error('Invalid API key or network error');
+                    const groqData = await response.json();
+                    models = groqData.data
+                        .map(m => ({ value: m.id, label: m.id }))
+                        .sort((a, b) => a.label.localeCompare(b.label));
+                    break;
+
+                default:
+                    throw new Error('Invalid provider');
+            }
+
+            return models;
+        } catch (error) {
+            console.error('Error fetching models:', error);
+            throw error;
+        }
+    }
+
     async sendMessage(message, questionContext = null) {
         if (!this.isConfigured()) {
             throw new Error('AI provider not configured. Please add your API key in settings.');

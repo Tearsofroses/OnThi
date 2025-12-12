@@ -76,10 +76,18 @@ class QuizController {
         this.view.aiSettingsCancelBtn.addEventListener('click', () => this.view.hideAISettings());
         this.view.aiSettingsClearBtn.addEventListener('click', () => this.clearAISettings());
         
-        // Provider change updates model options
-        this.view.aiProviderSelect.addEventListener('change', (e) => {
-            this.view.updateModelOptions(e.target.value);
-        });
+        // Fetch models button
+        const fetchModelsBtn = document.getElementById('fetch-models-btn');
+        if (fetchModelsBtn) {
+            fetchModelsBtn.addEventListener('click', () => this.fetchAvailableModels());
+        }
+        
+        // Enable fetch button when both provider and API key are entered
+        this.view.aiProviderSelect.addEventListener('change', () => this.updateFetchButtonState());
+        const apiKeyInput = document.getElementById('ai-api-key-input');
+        if (apiKeyInput) {
+            apiKeyInput.addEventListener('input', () => this.updateFetchButtonState());
+        }
         
         // Close modal on overlay click
         this.view.aiSettingsModal.addEventListener('click', (e) => {
@@ -827,6 +835,71 @@ class QuizController {
             this.view.setAIConfig(this.aiHelper.provider, this.aiHelper.apiKey, this.aiHelper.model);
         }
         this.view.showAISettings();
+        this.updateFetchButtonState();
+    }
+
+    updateFetchButtonState() {
+        const fetchBtn = document.getElementById('fetch-models-btn');
+        const provider = document.getElementById('ai-provider-select').value;
+        const apiKey = document.getElementById('ai-api-key-input').value.trim();
+        
+        if (fetchBtn) {
+            fetchBtn.disabled = !provider || !apiKey || apiKey.length < 10;
+        }
+    }
+
+    async fetchAvailableModels() {
+        const provider = document.getElementById('ai-provider-select').value;
+        const apiKey = document.getElementById('ai-api-key-input').value.trim();
+        const modelSelect = document.getElementById('ai-model-select');
+        const loadingEl = document.getElementById('model-loading');
+        const hintEl = document.getElementById('model-hint');
+        const fetchBtn = document.getElementById('fetch-models-btn');
+
+        if (!provider || !apiKey) {
+            this.view.showAlert('Please select a provider and enter your API key first!');
+            return;
+        }
+
+        try {
+            // Show loading
+            if (loadingEl) loadingEl.style.display = 'block';
+            if (hintEl) hintEl.style.display = 'none';
+            if (fetchBtn) fetchBtn.disabled = true;
+            modelSelect.innerHTML = '<option value=\"\">Loading...</option>';
+
+            // Fetch models from API
+            const models = await this.aiHelper.fetchModelsFromAPI(provider, apiKey);
+
+            if (models.length === 0) {
+                throw new Error('No models found for this API key');
+            }
+
+            // Populate dropdown
+            modelSelect.innerHTML = '<option value=\"\">-- Select a model --</option>' +
+                models.map(m => `<option value=\"${m.value}\">${m.label}</option>`).join('');
+            modelSelect.disabled = false;
+
+            // Update hint
+            if (hintEl) {
+                hintEl.textContent = `✅ Found ${models.length} available model(s)`;
+                hintEl.style.color = '#48bb78';
+                hintEl.style.display = 'block';
+            }
+
+        } catch (error) {
+            console.error('Error fetching models:', error);
+            this.view.showAlert('Failed to fetch models: ' + error.message + '\\n\\nPlease check your API key and try again.');
+            modelSelect.innerHTML = '<option value=\"\">-- Fetch failed, try again --</option>';
+            if (hintEl) {
+                hintEl.textContent = '❌ Failed to fetch models. Check your API key.';
+                hintEl.style.color = '#e53e3e';
+                hintEl.style.display = 'block';
+            }
+        } finally {
+            if (loadingEl) loadingEl.style.display = 'none';
+            if (fetchBtn) fetchBtn.disabled = false;
+        }
     }
 
     saveAISettings() {

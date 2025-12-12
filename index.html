@@ -158,22 +158,28 @@ D. A hierarchy of objects.</pre>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="ai-model-select">Choose Model:</label>
-                    <select id="ai-model-select" disabled>
-                        <option value="">-- Select provider first --</option>
-                    </select>
-                    <small style="color: #666; margin-top: 5px; display: block;">
-                        💡 Tip: gpt-4o-mini and Gemini Flash are the cheapest/free options
-                    </small>
-                </div>
-                <div class="form-group">
                     <label for="ai-api-key-input">API Key:</label>
                     <input type="password" id="ai-api-key-input" class="api-key-input" placeholder="Paste your API key here...">
                     <small style="color: #666; margin-top: 5px; display: block;">
-                        Get your free API key from:
-                        <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI</a> |
-                        <a href="https://makersuite.google.com/app/apikey" target="_blank">Gemini</a> |
-                        <a href="https://console.groq.com/keys" target="_blank">Groq</a>
+                        🔑 Get your free API key from:
+                        <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #667eea; font-weight: 600;">OpenAI</a> |
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #667eea; font-weight: 600;">Google AI Studio</a> |
+                        <a href="https://console.groq.com/keys" target="_blank" style="color: #667eea; font-weight: 600;">Groq</a>
+                    </small>
+                    <button id="fetch-models-btn" class="btn btn-primary" style="margin-top: 10px; width: 100%;" disabled>
+                        🔄 Fetch Available Models
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label for="ai-model-select">Choose Model:</label>
+                    <select id="ai-model-select" disabled>
+                        <option value="">-- Fetch models first --</option>
+                    </select>
+                    <div id="model-loading" style="display: none; color: #667eea; margin-top: 5px;">
+                        ⏳ Fetching models...
+                    </div>
+                    <small id="model-hint" style="color: #666; margin-top: 5px; display: block;">
+                        💡 Enter API key and click "Fetch Available Models" to see your options
                     </small>
                 </div>
                 <div class="modal-actions">
@@ -216,10 +222,10 @@ D. A hierarchy of objects.</pre>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     
     <!-- MVC Architecture -->
-    <script src="ai-helper.js?v=1.0.9"></script>
+    <script src="ai-helper.js?v=1.1.0"></script>
     <script src="models.js?v=1.0.2"></script>
     <script src="views.js?v=1.0.3"></script>
-    <script src="controllers.js?v=1.0.7"></script>
+    <script src="controllers.js?v=1.0.8"></script>
     <script src="app.js?v=1.0.2"></script>
 </body>
 </html>
