@@ -109,18 +109,21 @@ class QuizView {
         // Sort by timestamp descending
         quizzes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        this.sharedQuizzesList.innerHTML = quizzes.map(quiz => `
-            <div class="quiz-item shared-quiz-item" data-content='${this.escapeHtml(JSON.stringify(quiz.content))}'>
-                <div class="quiz-info">
-                    <div class="quiz-title">🌐 ${this.escapeHtml(quiz.title)}</div>
-                    <div class="quiz-meta">${quiz.questions.length} questions • Shared on ${new Date(quiz.timestamp).toLocaleString()}</div>
+        this.sharedQuizzesList.innerHTML = quizzes.map(quiz => {
+            const questionCount = quiz.questionCount || (quiz.questions ? quiz.questions.length : 0);
+            return `
+                <div class="quiz-item shared-quiz-item" data-content='${this.escapeHtml(quiz.content)}'>
+                    <div class="quiz-info">
+                        <div class="quiz-title">🌐 ${this.escapeHtml(quiz.title)}</div>
+                        <div class="quiz-meta">${questionCount} questions • Shared on ${new Date(quiz.timestamp).toLocaleString()}</div>
+                    </div>
+                    <div class="quiz-actions">
+                        <button class="btn btn-primary btn-small load-shared-quiz-btn">Load</button>
+                        <button class="btn btn-secondary btn-small save-shared-quiz-btn">Save to My Quizzes</button>
+                    </div>
                 </div>
-                <div class="quiz-actions">
-                    <button class="btn btn-primary btn-small load-shared-quiz-btn">Load</button>
-                    <button class="btn btn-secondary btn-small save-shared-quiz-btn">Save to My Quizzes</button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     // Show alert

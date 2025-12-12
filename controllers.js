@@ -86,13 +86,7 @@ class QuizController {
                     const quizItem = e.target.closest('.quiz-item');
                     const content = quizItem.dataset.content;
                     if (content) {
-                        try {
-                            const parsedContent = JSON.parse(content);
-                            this.view.setInputValue(parsedContent);
-                        } catch (error) {
-                            console.error('Error parsing quiz content:', error);
-                            this.view.showAlert('Error loading quiz content');
-                        }
+                        this.view.setInputValue(content);
                     }
                 });
             });
@@ -102,14 +96,8 @@ class QuizController {
                     const quizItem = e.target.closest('.quiz-item');
                     const content = quizItem.dataset.content;
                     if (content) {
-                        try {
-                            const parsedContent = JSON.parse(content);
-                            this.view.setInputValue(parsedContent);
-                            await this.saveQuiz();
-                        } catch (error) {
-                            console.error('Error saving quiz:', error);
-                            this.view.showAlert('Error saving quiz');
-                        }
+                        this.view.setInputValue(content);
+                        await this.saveQuiz();
                     }
                 });
             });
