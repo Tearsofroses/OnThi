@@ -91,6 +91,7 @@ class StorageModel {
         this.db = null;
         this.dbName = 'QuizDatabase';
         this.storeName = 'quizzes';
+        this.sharedQuizzesUrl = 'shared-quizzes.json';
     }
 
     async init() {
@@ -202,5 +203,23 @@ class StorageModel {
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
         });
+    }
+
+    async loadSharedQuizzes() {
+        try {
+            // Add cache-busting to always get latest version
+            const timestamp = new Date().getTime();
+            const response = await fetch(`${this.sharedQuizzesUrl}?t=${timestamp}`);
+            
+            if (!response.ok) {
+                throw new Error('Failed to load shared quizzes');
+            }
+            
+            const data = await response.json();
+            return data.sharedQuizzes || [];
+        } catch (error) {
+            console.error('Error loading shared quizzes:', error);
+            return [];
+        }
     }
 }

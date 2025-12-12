@@ -17,6 +17,7 @@ class QuizController {
         try {
             await this.model.init();
             await this.loadSavedQuizzes();
+            await this.loadSharedQuizzes();
         } catch (error) {
             console.error('Initialization error:', error);
             this.view.showAlert('Error initializing application: ' + error.message);
@@ -29,6 +30,7 @@ class QuizController {
         this.view.saveQuizBtn.addEventListener('click', () => this.saveQuiz());
         this.view.exportAllBtn.addEventListener('click', () => this.exportAllQuizzes());
         this.view.importFileInput.addEventListener('change', (e) => this.importQuizzes(e));
+        this.view.refreshSharedBtn.addEventListener('click', () => this.loadSharedQuizzes());
         
         // Quiz section
         this.view.prevBtn.addEventListener('click', () => this.previousQuestion());
@@ -70,7 +72,34 @@ class QuizController {
             console.error('Error loading quizzes:', error);
         }
     }
+SharedQuizzes() {
+        try {
+            const sharedQuizzes = await this.model.loadSharedQuizzes();
+            this.view.displaySharedQuizzes(sharedQuizzes);
+            
+            // Attach event listeners for shared quiz buttons
+            document.querySelectorAll('.load-shared-quiz-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const quizItem = e.target.closest('.quiz-item');
+                    const content = JSON.parse(quizItem.dataset.content);
+                    this.view.setInputValue(content);
+                });
+            });
+            
+            document.querySelectorAll('.save-shared-quiz-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const quizItem = e.target.closest('.quiz-item');
+                    const content = JSON.parse(quizItem.dataset.content);
+                    this.view.setInputValue(content);
+                    await this.saveQuiz();
+                });
+            });
+        } catch (error) {
+            console.error('Error loading shared quizzes:', error);
+        }
+    }
 
+    async load
     async loadQuiz(id) {
         try {
             const quiz = await this.model.getQuizById(id);

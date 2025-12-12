@@ -47,6 +47,25 @@ D. 6
 1B2B3A4C5D...
 ```
 
+## 🤝 Sharing Quizzes with Everyone
+
+### View Community Shared Quizzes
+All users can see and use quizzes shared by others in the "Community Shared Quizzes" section.
+
+### Share Your Quiz with the Community
+Want to add your quiz so everyone can use it?
+
+1. **Export your quiz** to a JSON file
+2. **Go to**: https://github.com/Tearsofroses/OnThi/issues
+3. **Click "New Issue"**
+4. **Title**: "Add Quiz: [Your Quiz Name]"
+5. **Description**: Paste your quiz content or attach the JSON file
+6. **Submit the issue**
+
+The repository owner will review and add your quiz to the shared collection!
+
+Or create a Pull Request to edit `shared-quizzes.json` directly if you're familiar with GitHub.
+
 ## 💾 Sharing Quizzes
 
 ### Export Your Quizzes:

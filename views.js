@@ -16,6 +16,8 @@ class QuizView {
         this.exportAllBtn = document.getElementById('export-all-btn');
         this.importFileInput = document.getElementById('import-file');
         this.savedQuizzesList = document.getElementById('saved-quizzes-list');
+        this.sharedQuizzesList = document.getElementById('shared-quizzes-list');
+        this.refreshSharedBtn = document.getElementById('refresh-shared-btn');
         
         // Quiz elements
         this.questionText = document.getElementById('question-text');
@@ -95,8 +97,32 @@ class QuizView {
         `).join('');
     }
 
-    // Display current question
-    displayQuestion(question, questionIndex, totalQuestions, userAnswer = null) {
+    // Display shared quizzes from repository
+    displaySharedQuizzes(quizzes) {
+        if (quizzes.length === 0) {
+            this.sharedQuizzesList.innerHTML = '<p class="no-quizzes">No shared quizzes available yet</p>';
+            return;
+        }
+        
+        // Sort by timestamp descending
+        quizzes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        this.sharedQuizzesList.innerHTML = quizzes.map(quiz => `
+            <div class="quiz-item shared-quiz-item" data-content='${this.escapeHtml(JSON.stringify(quiz.content))}'>
+                <div class="quiz-info">
+                    <div class="quiz-title">🌐 ${this.escapeHtml(quiz.title)}</div>
+                    <div class="quiz-meta">${quiz.questions.length} questions • Shared on ${new Date(quiz.timestamp).toLocaleString()}</div>
+                </div>
+                <div class="quiz-actions">
+                    <button class="btn btn-primary btn-small load-shared-quiz-btn">Load</button>
+                    <button class="btn btn-secondary btn-small save-shared-quiz-btn">Save to My Quizzes</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Show alert
+    showAlert(message) {
         const questionHTML = `${question.number}. ${question.lo ? question.lo + ' ' : ''}${question.text}`;
         this.questionText.innerHTML = this.renderMath(questionHTML);
         
@@ -118,8 +144,8 @@ class QuizView {
             
             this.optionsContainer.appendChild(optionDiv);
         });
-        
-        // Update navigation
+        current question
+    displayQuestion(question, questionIndex, totalQuestions, userAnswer = null
         this.updateNavigation(questionIndex, totalQuestions);
     }
 
@@ -186,7 +212,8 @@ class QuizView {
         });
     }
 
-    // Get input value
+    // Display results
+    displayResults(score, total, questions, userAnswers, correctAnswers) {
     getInputValue() {
         return this.quizInput.value.trim();
     }
