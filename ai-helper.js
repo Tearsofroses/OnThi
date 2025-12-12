@@ -33,7 +33,7 @@ class AIHelper {
     getDefaultModel(provider) {
         const defaults = {
             'openai': 'gpt-4o-mini',
-            'gemini': 'gemini-1.5-flash',
+            'gemini': 'gemini-2.5-flash',
             'groq': 'llama-3.1-70b-versatile'
         };
         return defaults[provider] || null;
@@ -48,8 +48,10 @@ class AIHelper {
                 { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' }
             ],
             'gemini': [
-                { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Recommended - Free)' },
-                { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Most Capable)' }
+                { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Recommended - Free)' },
+                { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Experimental' },
+                { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Legacy)' },
+                { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Legacy)' }
             ],
             'groq': [
                 { value: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B (Recommended)' },
@@ -185,11 +187,12 @@ Guidelines:
             ? `${systemPrompt}\n\nStudent question: ${message}`
             : message;
 
-        const modelName = this.model || 'gemini-1.5-flash';
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${this.apiKey}`, {
+        const modelName = this.model || 'gemini-2.5-flash';
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'x-goog-api-key': this.apiKey
             },
             body: JSON.stringify({
                 contents: [{
