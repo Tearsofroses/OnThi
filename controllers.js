@@ -72,34 +72,52 @@ class QuizController {
             console.error('Error loading quizzes:', error);
         }
     }
-SharedQuizzes() {
+
+    async loadSharedQuizzes() {
         try {
             const sharedQuizzes = await this.model.loadSharedQuizzes();
+            console.log('Displaying shared quizzes:', sharedQuizzes.length);
             this.view.displaySharedQuizzes(sharedQuizzes);
             
             // Attach event listeners for shared quiz buttons
             document.querySelectorAll('.load-shared-quiz-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const quizItem = e.target.closest('.quiz-item');
-                    const content = JSON.parse(quizItem.dataset.content);
-                    this.view.setInputValue(content);
+                    const content = quizItem.dataset.content;
+                    if (content) {
+                        try {
+                            const parsedContent = JSON.parse(content);
+                            this.view.setInputValue(parsedContent);
+                        } catch (error) {
+                            console.error('Error parsing quiz content:', error);
+                            this.view.showAlert('Error loading quiz content');
+                        }
+                    }
                 });
             });
             
             document.querySelectorAll('.save-shared-quiz-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const quizItem = e.target.closest('.quiz-item');
-                    const content = JSON.parse(quizItem.dataset.content);
-                    this.view.setInputValue(content);
-                    await this.saveQuiz();
+                    const content = quizItem.dataset.content;
+                    if (content) {
+                        try {
+                            const parsedContent = JSON.parse(content);
+                            this.view.setInputValue(parsedContent);
+                            await this.saveQuiz();
+                        } catch (error) {
+                            console.error('Error saving quiz:', error);
+                            this.view.showAlert('Error saving quiz');
+                        }
+                    }
                 });
             });
         } catch (error) {
             console.error('Error loading shared quizzes:', error);
+            this.view.showAlert('Error loading community quizzes. Please try again.');
         }
     }
 
-    async load
     async loadQuiz(id) {
         try {
             const quiz = await this.model.getQuizById(id);
