@@ -189,6 +189,21 @@ class QuizController {
         }
     }
 
+    async verifyRecaptcha() {
+        try {
+            // Check if reCAPTCHA is loaded
+            if (typeof grecaptcha === 'undefined') {
+                console.warn('reCAPTCHA not loaded, skipping verification');
+                return 'skip'; // Allow publishing if reCAPTCHA not configured
+            }
+            
+            return await grecaptcha.execute('6LfFVyksAAAAAHRZbip60OZY6h19WSAwrKojXlf5', { action: 'publish_quiz' });
+        } catch (error) {
+            console.error('reCAPTCHA error:', error);
+            return null;
+        }
+    }
+
     async deleteSharedQuiz(quiz) {
         const proceed = this.view.showConfirm(
             `Delete "${quiz.title}" from community?\n\nThis will remove the quiz for everyone.`
@@ -215,6 +230,13 @@ class QuizController {
         }
         
         try {
+            // Verify reCAPTCHA
+            const recaptchaToken = await this.verifyRecaptcha();
+            if (!recaptchaToken) {
+                this.view.showAlert('⚠️ Security verification failed. Please try again.');
+                return;
+            }
+            
             // Parse quiz data
             const { questions, answers } = Quiz.parseFromText(content);
             
