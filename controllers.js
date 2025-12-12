@@ -20,7 +20,6 @@ class QuizController {
     async init() {
         try {
             await this.model.init();
-            await this.loadSavedQuizzes();
             await this.loadSharedQuizzes();
             this.updateAIChatStatus();
             
@@ -35,7 +34,6 @@ class QuizController {
     initEventListeners() {
         // Input section
         this.view.startQuizBtn.addEventListener('click', () => this.startQuiz());
-        this.view.saveQuizBtn.addEventListener('click', () => this.saveQuiz());
         this.view.publishQuizBtn.addEventListener('click', () => this.publishToCommunity());
         this.view.exportAllBtn.addEventListener('click', () => this.exportAllQuizzes());
         this.view.importFileInput.addEventListener('change', (e) => this.importQuizzes(e));
