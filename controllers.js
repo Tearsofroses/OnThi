@@ -21,6 +21,7 @@ class QuizController {
         try {
             await this.model.init();
             await this.loadSharedQuizzes();
+            await this.loadCourseSuggestions();
             this.updateAIChatStatus();
             this.updateReviewChatStatus();
             
@@ -37,9 +38,8 @@ class QuizController {
         // Input section
         this.view.startQuizBtn.addEventListener('click', () => this.startQuiz());
         this.view.publishQuizBtn.addEventListener('click', () => this.publishToCommunity());
-        this.view.exportAllBtn.addEventListener('click', () => this.exportAllQuizzes());
-        this.view.importFileInput.addEventListener('change', (e) => this.importQuizzes(e));
         this.view.refreshSharedBtn.addEventListener('click', () => this.loadSharedQuizzes());
+        this.view.courseFilter.addEventListener('change', (e) => this.filterSharedQuizzes(e.target.value));
         
         // Quiz section
         this.view.prevBtn.addEventListener('click', () => this.previousQuestion());
@@ -154,7 +154,9 @@ class QuizController {
         try {
             const sharedQuizzes = await this.model.loadSharedQuizzes();
             console.log('Displaying shared quizzes:', sharedQuizzes.length);
-            this.view.displaySharedQuizzes(sharedQuizzes);
+            // Store current filter selection
+            const currentFilter = this.view.courseFilter.value || 'all';
+            this.view.displaySharedQuizzes(sharedQuizzes, currentFilter);
             
             // Attach event listeners for shared quiz buttons
             document.querySelectorAll('.load-shared-quiz-btn').forEach(btn => {
@@ -165,19 +167,7 @@ class QuizController {
                         const quiz = this.view.sharedQuizzesCache[quizIndex];
                         this.view.setInputValue(quiz.content);
                         this.view.setQuizName(quiz.title);
-                    }
-                });
-            });
-            
-            document.querySelectorAll('.save-shared-quiz-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const quizItem = e.target.closest('.quiz-item');
-                    const quizIndex = parseInt(quizItem.dataset.quizIndex);
-                    if (quizIndex >= 0 && this.view.sharedQuizzesCache[quizIndex]) {
-                        const quiz = this.view.sharedQuizzesCache[quizIndex];
-                        this.view.setInputValue(quiz.content);
-                        this.view.setQuizName(quiz.title);
-                        await this.saveQuiz();
+                        this.view.setCourse(quiz.course || '');
                     }
                 });
             });
@@ -203,9 +193,21 @@ class QuizController {
             const quiz = await this.model.getQuizById(id);
             if (quiz) {
                 this.view.setInputValue(quiz.content);
+                this.view.setQuizName(quiz.title);
+                this.view.setCourse(quiz.course || '');
             }
         } catch (error) {
             this.view.showAlert('Error loading quiz: ' + error.message);
+        }
+    }
+
+    async loadCourseSuggestions() {
+        try {
+            const quizzes = await this.model.getAllQuizzes();
+            const courses = [...new Set(quizzes.map(q => q.course).filter(c => c))];
+            this.view.updateCourseSuggestions(courses);
+        } catch (error) {
+            console.error('Error loading course suggestions:', error);
         }
     }
 
@@ -229,6 +231,18 @@ class QuizController {
             this.view.showAlert('Please paste quiz content before saving!');
             return;
         }
+
+        const title = this.view.getQuizName();
+        if (!title.trim()) {
+            this.view.showAlert('Please enter a quiz name!');
+            return;
+        }
+
+        const course = this.view.getCourse();
+        if (!course.trim()) {
+            this.view.showAlert('Please enter a course name!');
+            return;
+        }
         
         try {
             // Parse quiz data
@@ -246,14 +260,18 @@ class QuizController {
                        (questions[0].text.length > 60 ? '...' : '');
             }
             
+            // Get course
+            const course = this.view.getCourse();
+            
             // Create quiz object
-            const quiz = new Quiz(null, title, content, questions, answers, new Date().toISOString());
+            const quiz = new Quiz(null, title, content, questions, answers, new Date().toISOString(), course);
             
             // Save to database
             await this.model.saveQuiz(quiz);
             
             this.view.showAlert('Quiz saved successfully!');
             await this.loadSavedQuizzes();
+            await this.loadCourseSuggestions(); // Update course suggestions
             
         } catch (error) {
             if (error.message.includes('already exists')) {
@@ -280,6 +298,11 @@ class QuizController {
         }
     }
 
+    filterSharedQuizzes(course) {
+        if (!this.view.sharedQuizzesCache) return;
+        this.view.displaySharedQuizzes(this.view.sharedQuizzesCache, course);
+    }
+
     async deleteSharedQuiz(quiz) {
         const proceed = this.view.showConfirm(
             `Delete "${quiz.title}" from community?\n\nThis will remove the quiz for everyone.`
@@ -302,6 +325,18 @@ class QuizController {
         
         if (!content) {
             this.view.showAlert('Please paste quiz content before publishing!');
+            return;
+        }
+
+        const title = this.view.getQuizName();
+        if (!title.trim()) {
+            this.view.showAlert('Please enter a quiz name!');
+            return;
+        }
+
+        const course = this.view.getCourse();
+        if (!course.trim()) {
+            this.view.showAlert('Please enter a course name!');
             return;
         }
         
@@ -328,6 +363,9 @@ class QuizController {
                        (questions[0].text.length > 60 ? '...' : '');
             }
             
+            // Get course
+            const course = this.view.getCourse();
+            
             // Confirm before publishing
             const proceed = this.view.showConfirm(
                 `Publish "${title}" to community?\n\nThis will make your quiz visible to everyone using this app.`
@@ -336,14 +374,15 @@ class QuizController {
             if (!proceed) return;
             
             // Create quiz object
-            const quiz = new Quiz(null, title, content, questions, answers, new Date().toISOString());
+            const quiz = new Quiz(null, title, content, questions, answers, new Date().toISOString(), course);
             
             // Publish to community
             await this.model.publishQuizToCommunity(quiz);
             
             this.view.showAlert('✅ Quiz published to community successfully!\n\nEveryone can now see and use your quiz.');
             
-            // Reload shared quizzes to show the new one
+            // Reset filter to "all" and reload shared quizzes to show the new one
+            this.view.courseFilter.value = 'all';
             await this.loadSharedQuizzes();
             
         } catch (error) {
@@ -357,6 +396,18 @@ class QuizController {
         
         if (!content) {
             this.view.showAlert('Please paste your quiz questions and answer key!');
+            return;
+        }
+
+        const title = this.view.getQuizName();
+        if (!title.trim()) {
+            this.view.showAlert('Please enter a quiz name!');
+            return;
+        }
+
+        const course = this.view.getCourse();
+        if (!course.trim()) {
+            this.view.showAlert('Please enter a course name!');
             return;
         }
         
@@ -410,7 +461,8 @@ class QuizController {
             
             // Create quiz object
             const title = this.view.getQuizName() || 'Current Quiz';
-            this.currentQuiz = new Quiz(null, title, content, questions, answers);
+            const course = this.view.getCourse();
+            this.currentQuiz = new Quiz(null, title, content, questions, answers, null, course);
             this.currentQuestionIndex = 0;
             this.userAnswers = {};
             this.currentSessionId = null; // New session
@@ -714,103 +766,6 @@ class QuizController {
         this.selectedReviewQuestion = null;
         this.view.clearInput();
         this.view.showSection(this.view.inputSection);
-    }
-
-    async exportAllQuizzes() {
-        try {
-            const quizzes = await this.model.getAllQuizzes();
-            
-            if (quizzes.length === 0) {
-                this.view.showAlert('No quizzes to export!');
-                return;
-            }
-            
-            // Create export data
-            const exportData = {
-                version: '1.0',
-                exportDate: new Date().toISOString(),
-                quizzes: quizzes.map(quiz => ({
-                    title: quiz.title,
-                    content: quiz.content,
-                    questions: quiz.questions,
-                    answers: quiz.answers,
-                    timestamp: quiz.timestamp
-                }))
-            };
-            
-            // Download as JSON file
-            const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
-                type: 'application/json' 
-            });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `quizzes-export-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            this.view.showAlert(`Exported ${quizzes.length} quiz(zes) successfully!`);
-        } catch (error) {
-            this.view.showAlert('Error exporting quizzes: ' + error.message);
-            console.error(error);
-        }
-    }
-
-    async importQuizzes(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        try {
-            const text = await file.text();
-            const importData = JSON.parse(text);
-            
-            if (!importData.quizzes || !Array.isArray(importData.quizzes)) {
-                throw new Error('Invalid quiz file format');
-            }
-            
-            let imported = 0;
-            let skipped = 0;
-            
-            for (const quizData of importData.quizzes) {
-                try {
-                    const quiz = new Quiz(
-                        null,
-                        quizData.title,
-                        quizData.content,
-                        quizData.questions,
-                        quizData.answers,
-                        quizData.timestamp
-                    );
-                    
-                    await this.model.saveQuiz(quiz);
-                    imported++;
-                } catch (error) {
-                    if (error.message.includes('already exists')) {
-                        skipped++;
-                    } else {
-                        throw error;
-                    }
-                }
-            }
-            
-            await this.loadSavedQuizzes();
-            
-            let message = `Import complete!\n`;
-            if (imported > 0) message += `✓ Imported: ${imported} quiz(zes)\n`;
-            if (skipped > 0) message += `⊘ Skipped duplicates: ${skipped}`;
-            
-            this.view.showAlert(message);
-            
-            // Reset file input
-            event.target.value = '';
-            
-        } catch (error) {
-            this.view.showAlert('Error importing quizzes: ' + error.message);
-            console.error(error);
-            event.target.value = '';
-        }
     }
 
     // AI Chat Methods

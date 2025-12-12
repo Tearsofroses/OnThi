@@ -3,13 +3,14 @@
 // =====================
 
 class Quiz {
-    constructor(id, title, content, questions, answers, timestamp) {
+    constructor(id, title, content, questions, answers, timestamp, course) {
         this.id = id;
         this.title = title;
         this.content = content;
         this.questions = questions;
         this.answers = answers;
         this.timestamp = timestamp;
+        this.course = course || '';
         this.hash = this.generateHash(content);
     }
 

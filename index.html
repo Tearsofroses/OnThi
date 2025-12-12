@@ -33,6 +33,12 @@
                     <h3>🌐 Community Shared Quizzes</h3>
                     <button id="refresh-shared-btn" class="btn btn-small btn-secondary">🔄 Refresh</button>
                 </div>
+                <div class="course-filter-section">
+                    <label for="course-filter">Filter by Course:</label>
+                    <select id="course-filter" class="course-filter-dropdown">
+                        <option value="all">All Courses</option>
+                    </select>
+                </div>
                 <div id="shared-quizzes-list" class="quiz-list">
                     <p class="no-quizzes">Loading community quizzes...</p>
                 </div>
@@ -75,19 +81,21 @@ D. A hierarchy of objects.</pre>
             
             <p>Paste your MCQ questions and answer key below:</p>
             <div class="quiz-name-section">
-                <label for="quiz-name-input">Quiz Name (optional):</label>
-                <input type="text" id="quiz-name-input" placeholder="e.g., Database Management Final Exam" maxlength="100">
+                <label for="quiz-name-input">Quiz Name <span style="color: red;">*</span></label>
+                <input type="text" id="quiz-name-input" placeholder="e.g., Database Management Final Exam" maxlength="100" required>
+            </div>
+            <div class="quiz-name-section">
+                <label for="quiz-course-input">Course <span style="color: red;">*</span></label>
+                <div class="course-input-group">
+                    <input type="text" id="quiz-course-input" list="course-suggestions" placeholder="e.g., Software Engineering" maxlength="50" required>
+                    <datalist id="course-suggestions"></datalist>
+                </div>
             </div>
             <textarea id="quiz-input" placeholder="Paste your questions here..."></textarea>
             
             <div class="input-actions">
                 <button id="start-quiz-btn" class="btn btn-primary">Start Quiz</button>
                 <button id="publish-quiz-btn" class="btn btn-success">📤 Share to Community</button>
-                <button id="export-all-btn" class="btn btn-secondary">Export All Quizzes</button>
-                <label for="import-file" class="btn btn-secondary">
-                    Import Quizzes
-                    <input type="file" id="import-file" accept=".json" style="display: none;">
-                </label>
             </div>
         </div>
 

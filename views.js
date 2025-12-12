@@ -11,15 +11,16 @@ class QuizView {
         
         // Input elements
         this.quizNameInput = document.getElementById('quiz-name-input');
+        this.quizCourseInput = document.getElementById('quiz-course-input');
+        this.courseSuggestions = document.getElementById('course-suggestions');
         this.quizInput = document.getElementById('quiz-input');
         this.startQuizBtn = document.getElementById('start-quiz-btn');
         this.saveQuizBtn = document.getElementById('save-quiz-btn');
         this.publishQuizBtn = document.getElementById('publish-quiz-btn');
-        this.exportAllBtn = document.getElementById('export-all-btn');
-        this.importFileInput = document.getElementById('import-file');
         this.savedQuizzesList = document.getElementById('saved-quizzes-list');
         this.sharedQuizzesList = document.getElementById('shared-quizzes-list');
         this.refreshSharedBtn = document.getElementById('refresh-shared-btn');
+        this.courseFilter = document.getElementById('course-filter');
         
         // Cache for shared quizzes to avoid data-attribute size limits
         this.sharedQuizzesCache = [];
@@ -104,10 +105,12 @@ class QuizView {
         // Sort by timestamp descending
         quizzes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        this.savedQuizzesList.innerHTML = quizzes.map(quiz => `
+        this.savedQuizzesList.innerHTML = quizzes.map(quiz => {
+            const courseTag = quiz.course ? `<span class="course-tag">${this.escapeHtml(quiz.course)}</span>` : '';
+            return `
             <div class="quiz-item" data-id="${quiz.id}">
                 <div class="quiz-info">
-                    <div class="quiz-title">${this.escapeHtml(quiz.title)}</div>
+                    <div class="quiz-title">${this.escapeHtml(quiz.title)} ${courseTag}</div>
                     <div class="quiz-meta">${quiz.questions.length} questions • Saved on ${new Date(quiz.timestamp).toLocaleString()}</div>
                 </div>
                 <div class="quiz-actions">
@@ -115,38 +118,69 @@ class QuizView {
                     <button class="btn btn-danger btn-small delete-quiz-btn" data-id="${quiz.id}">Delete</button>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
     }
 
     // Display shared quizzes from repository
-    displaySharedQuizzes(quizzes) {
-        if (quizzes.length === 0) {
-            this.sharedQuizzesList.innerHTML = '<p class="no-quizzes">No shared quizzes available yet</p>';
+    displaySharedQuizzes(quizzes, selectedCourse = 'all') {
+        // Store all quizzes in cache
+        this.sharedQuizzesCache = quizzes;
+        
+        // Update course filter dropdown
+        this.updateCourseFilter(quizzes, selectedCourse);
+        
+        // Filter quizzes by selected course
+        const filteredQuizzes = selectedCourse === 'all' 
+            ? quizzes 
+            : quizzes.filter(quiz => quiz.course === selectedCourse);
+        
+        if (filteredQuizzes.length === 0) {
+            const message = selectedCourse === 'all' 
+                ? 'No shared quizzes available yet'
+                : `No quizzes found for "${selectedCourse}"`;
+            this.sharedQuizzesList.innerHTML = `<p class="no-quizzes">${message}</p>`;
             return;
         }
         
         // Sort by timestamp descending
-        quizzes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        filteredQuizzes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        // Store quizzes in cache to avoid data-attribute size limits
-        this.sharedQuizzesCache = quizzes;
-        
-        this.sharedQuizzesList.innerHTML = quizzes.map((quiz, index) => {
+        this.sharedQuizzesList.innerHTML = filteredQuizzes.map((quiz, index) => {
+            // Find original index in full cache for data-quiz-index
+            const originalIndex = this.sharedQuizzesCache.indexOf(quiz);
             const questionCount = quiz.questionCount || (quiz.questions ? quiz.questions.length : 0);
+            const courseTag = quiz.course ? `<span class="course-tag">${this.escapeHtml(quiz.course)}</span>` : '';
             return `
-                <div class="quiz-item shared-quiz-item" data-quiz-index="${index}">
+                <div class="quiz-item shared-quiz-item" data-quiz-index="${originalIndex}">
                     <div class="quiz-info">
-                        <div class="quiz-title">🌐 ${this.escapeHtml(quiz.title)}</div>
+                        <div class="quiz-title">🌐 ${this.escapeHtml(quiz.title)} ${courseTag}</div>
                         <div class="quiz-meta">${questionCount} questions • Shared on ${new Date(quiz.timestamp).toLocaleString()}</div>
                     </div>
                     <div class="quiz-actions">
                         <button class="btn btn-primary btn-small load-shared-quiz-btn">Load</button>
-                        <button class="btn btn-secondary btn-small save-shared-quiz-btn">Save to My Quizzes</button>
                         <button class="btn btn-danger btn-small delete-shared-quiz-btn">Delete</button>
                     </div>
                 </div>
             `;
         }).join('');
+    }
+
+    updateCourseFilter(quizzes, selectedCourse) {
+        // Extract unique courses
+        const courses = [...new Set(quizzes.map(q => q.course).filter(c => c))];
+        courses.sort();
+        
+        // Build options HTML
+        const optionsHTML = [
+            '<option value="all">All Courses</option>',
+            ...courses.map(course => 
+                `<option value="${this.escapeHtml(course)}" ${course === selectedCourse ? 'selected' : ''}>
+                    ${this.escapeHtml(course)}
+                </option>`
+            )
+        ].join('');
+        
+        this.courseFilter.innerHTML = optionsHTML;
     }
 
     // Display a single question
@@ -302,6 +336,11 @@ class QuizView {
         return this.quizNameInput.value.trim();
     }
 
+    // Get course
+    getCourse() {
+        return this.quizCourseInput.value.trim();
+    }
+
     // Set input value
     setInputValue(value) {
         this.quizInput.value = value;
@@ -312,10 +351,23 @@ class QuizView {
         this.quizNameInput.value = name;
     }
 
+    // Set course
+    setCourse(course) {
+        this.quizCourseInput.value = course || '';
+    }
+
+    // Update course suggestions
+    updateCourseSuggestions(courses) {
+        this.courseSuggestions.innerHTML = courses.map(course => 
+            `<option value="${this.escapeHtml(course)}">`
+        ).join('');
+    }
+
     // Clear input
     clearInput() {
         this.quizInput.value = '';
         this.quizNameInput.value = '';
+        this.quizCourseInput.value = '';
     }
 
     // Show alert
