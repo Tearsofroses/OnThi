@@ -10,8 +10,10 @@ class QuizController {
         this.currentQuestionIndex = 0;
         this.userAnswers = {};
         this.aiHelper = new AIHelper();
+        this.sessionKey = 'quizSession';
         
         this.initEventListeners();
+        this.loadSession(); // Restore previous session if exists
     }
 
     async init() {
@@ -345,6 +347,9 @@ class QuizController {
             this.view.showSection(this.view.quizSection);
             this.displayCurrentQuestion();
             
+            // Save initial session
+            this.saveSession();
+            
         } catch (error) {
             this.view.showAlert('Error parsing quiz: ' + error.message);
             console.error(error);
@@ -375,12 +380,16 @@ class QuizController {
                 opt.classList.add('selected');
             }
         });
+        
+        // Save session after answering
+        this.saveSession();
     }
 
     previousQuestion() {
         if (this.currentQuestionIndex > 0) {
             this.currentQuestionIndex--;
             this.displayCurrentQuestion();
+            this.saveSession();
         }
     }
 
@@ -388,6 +397,7 @@ class QuizController {
         if (this.currentQuestionIndex < this.currentQuiz.questions.length - 1) {
             this.currentQuestionIndex++;
             this.displayCurrentQuestion();
+            this.saveSession();
         }
     }
 
@@ -423,12 +433,86 @@ class QuizController {
             this.userAnswers,
             this.currentQuiz.answers
         );
+        
+        // Clear session after completion
+        this.clearSession();
+    }
+
+    saveSession() {
+        if (!this.currentQuiz) {
+            localStorage.removeItem(this.sessionKey);
+            return;
+        }
+        
+        const session = {
+            quizContent: this.currentQuiz.content,
+            quizTitle: this.currentQuiz.title,
+            currentQuestionIndex: this.currentQuestionIndex,
+            userAnswers: this.userAnswers,
+            timestamp: new Date().toISOString()
+        };
+        
+        localStorage.setItem(this.sessionKey, JSON.stringify(session));
+    }
+    
+    loadSession() {
+        const saved = localStorage.getItem(this.sessionKey);
+        if (!saved) return;
+        
+        try {
+            const session = JSON.parse(saved);
+            
+            // Check if session is not too old (24 hours)
+            const sessionAge = Date.now() - new Date(session.timestamp).getTime();
+            if (sessionAge > 24 * 60 * 60 * 1000) {
+                localStorage.removeItem(this.sessionKey);
+                return;
+            }
+            
+            // Show confirmation to user
+            const proceed = confirm(
+                `Resume previous quiz session?\n\n` +
+                `Progress: Question ${session.currentQuestionIndex + 1}\n` +
+                `Answered: ${Object.keys(session.userAnswers).length} questions\n\n` +
+                `Click OK to resume, or Cancel to start fresh.`
+            );
+            
+            if (!proceed) {
+                localStorage.removeItem(this.sessionKey);
+                return;
+            }
+            
+            // Restore quiz state
+            this.view.setInputValue(session.quizContent);
+            this.view.setQuizName(session.quizTitle || '');
+            
+            // Parse and restore quiz
+            const { questions, answers } = Quiz.parseFromText(session.quizContent);
+            this.currentQuiz = new Quiz(null, session.quizTitle || 'Current Quiz', session.quizContent, questions, answers);
+            this.currentQuestionIndex = session.currentQuestionIndex;
+            this.userAnswers = session.userAnswers;
+            
+            // Show quiz section
+            this.view.showSection(this.view.quizSection);
+            this.displayCurrentQuestion();
+            
+            this.view.showAlert('✅ Previous session restored!');
+            
+        } catch (error) {
+            console.error('Error loading session:', error);
+            localStorage.removeItem(this.sessionKey);
+        }
+    }
+    
+    clearSession() {
+        localStorage.removeItem(this.sessionKey);
     }
 
     restart() {
         this.currentQuiz = null;
         this.currentQuestionIndex = 0;
         this.userAnswers = {};
+        this.clearSession();
         this.view.clearInput();
         this.view.showSection(this.view.inputSection);
     }
