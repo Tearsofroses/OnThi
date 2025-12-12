@@ -103,13 +103,13 @@ class StorageModel {
     initFirebase() {
         try {
             const firebaseConfig = {
-                apiKey: "AIzaSyBXz4_LZJ3YvYEYqKhN8KQ_xP8xvL6HRQU",
-                authDomain: "onthi-quizzes.firebaseapp.com",
-                databaseURL: "https://onthi-quizzes-default-rtdb.firebaseio.com",
-                projectId: "onthi-quizzes",
-                storageBucket: "onthi-quizzes.firebasestorage.app",
-                messagingSenderId: "1065337890883",
-                appId: "1:1065337890883:web:a8b6f4c3d2e1f0g9h8i7j6"
+                apiKey: "AIzaSyCbJcL2VPgkBh52pYh2EZeB5Ku9x4SJFTk",
+                authDomain: "onthi-4f49c.firebaseapp.com",
+                databaseURL: "https://onthi-4f49c-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "onthi-4f49c",
+                storageBucket: "onthi-4f49c.firebasestorage.app",
+                messagingSenderId: "702515106316",
+                appId: "1:702515106316:web:8d1738f981ecf1f7625429"
             };
             
             if (!firebase.apps.length) {
