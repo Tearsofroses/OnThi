@@ -21,6 +21,9 @@ class QuizView {
         this.sharedQuizzesList = document.getElementById('shared-quizzes-list');
         this.refreshSharedBtn = document.getElementById('refresh-shared-btn');
         
+        // Cache for shared quizzes to avoid data-attribute size limits
+        this.sharedQuizzesCache = [];
+        
         // Quiz elements
         this.questionText = document.getElementById('question-text');
         this.optionsContainer = document.getElementById('options-container');
@@ -109,10 +112,13 @@ class QuizView {
         // Sort by timestamp descending
         quizzes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        this.sharedQuizzesList.innerHTML = quizzes.map(quiz => {
+        // Store quizzes in cache to avoid data-attribute size limits
+        this.sharedQuizzesCache = quizzes;
+        
+        this.sharedQuizzesList.innerHTML = quizzes.map((quiz, index) => {
             const questionCount = quiz.questionCount || (quiz.questions ? quiz.questions.length : 0);
             return `
-                <div class="quiz-item shared-quiz-item" data-content='${this.escapeHtml(quiz.content)}'>
+                <div class="quiz-item shared-quiz-item" data-quiz-index="${index}">
                     <div class="quiz-info">
                         <div class="quiz-title">🌐 ${this.escapeHtml(quiz.title)}</div>
                         <div class="quiz-meta">${questionCount} questions • Shared on ${new Date(quiz.timestamp).toLocaleString()}</div>

@@ -84,9 +84,11 @@ class QuizController {
             document.querySelectorAll('.load-shared-quiz-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const quizItem = e.target.closest('.quiz-item');
-                    const content = quizItem.dataset.content;
-                    if (content) {
-                        this.view.setInputValue(content);
+                    const quizIndex = parseInt(quizItem.dataset.quizIndex);
+                    if (quizIndex >= 0 && this.view.sharedQuizzesCache[quizIndex]) {
+                        const quiz = this.view.sharedQuizzesCache[quizIndex];
+                        this.view.setInputValue(quiz.content);
+                        this.view.setQuizName(quiz.title);
                     }
                 });
             });
@@ -94,9 +96,11 @@ class QuizController {
             document.querySelectorAll('.save-shared-quiz-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const quizItem = e.target.closest('.quiz-item');
-                    const content = quizItem.dataset.content;
-                    if (content) {
-                        this.view.setInputValue(content);
+                    const quizIndex = parseInt(quizItem.dataset.quizIndex);
+                    if (quizIndex >= 0 && this.view.sharedQuizzesCache[quizIndex]) {
+                        const quiz = this.view.sharedQuizzesCache[quizIndex];
+                        this.view.setInputValue(quiz.content);
+                        this.view.setQuizName(quiz.title);
                         await this.saveQuiz();
                     }
                 });
