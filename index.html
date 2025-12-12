@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive MCQ Quiz</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Interactive MCQ Quiz</h1>
+        </header>
+
+        <!-- Input Section -->
+        <div id="input-section" class="section">
+            <h2>Setup Your Quiz</h2>
+            
+            <!-- Saved Quizzes -->
+            <div id="saved-quizzes-section" class="saved-quizzes">
+                <h3>Saved Quizzes</h3>
+                <div id="saved-quizzes-list" class="quiz-list">
+                    <p class="no-quizzes">No saved quizzes yet</p>
+                </div>
+            </div>
+            
+            <div class="format-guide">
+                <h3>Expected Format:</h3>
+                <div class="format-example">
+                    <strong>Questions:</strong>
+                    <pre>1. (LO 1.1) Which of the following best describes the "Three-Schema Architecture"?
+
+A. It separates the database into three physical files for redundancy.
+
+B. It separates the user applications from the physical database to achieve data independence.
+
+C. It divides users into three levels: Administrator, Designer, and End User.
+
+D. It is a backup strategy involving three copies of data.
+
+2. (LO 1.2) In the Relational Data Model, what is a "Relation" conceptually equivalent to?
+
+A. A row in a file.
+
+B. A pointer connecting two records.
+
+C. A mathematical table of values using $R(X, Y, Z)$ notation.
+
+D. A hierarchy of objects.</pre>
+                    
+                    <strong>Answer Key (at the end):</strong>
+                    <pre>1B2C3A4B5C...</pre>
+                    <p class="format-note"><strong>Note:</strong> LaTeX math notation like $\pi$, $\sigma$, $R(X,Y)$ is supported!</p>
+                </div>
+            </div>
+            
+            <p>Paste your MCQ questions and answer key below:</p>
+            <textarea id="quiz-input" placeholder="Paste your questions here..."></textarea>
+            
+            <div class="input-actions">
+                <button id="start-quiz-btn" class="btn btn-primary">Start Quiz</button>
+                <button id="save-quiz-btn" class="btn btn-secondary">Save Quiz</button>
+                <button id="export-all-btn" class="btn btn-secondary">Export All Quizzes</button>
+                <label for="import-file" class="btn btn-secondary">
+                    Import Quizzes
+                    <input type="file" id="import-file" accept=".json" style="display: none;">
+                </label>
+            </div>
+        </div>
+
+        <!-- Quiz Section -->
+        <div id="quiz-section" class="section hidden">
+            <div class="quiz-header">
+                <div class="progress-bar">
+                    <div id="progress" class="progress-fill"></div>
+                </div>
+                <p class="question-counter">Question <span id="current-q">1</span> of <span id="total-q">0</span></p>
+            </div>
+            
+            <div id="question-container">
+                <h3 id="question-text"></h3>
+                <div id="options-container" class="options"></div>
+            </div>
+
+            <div class="quiz-controls">
+                <button id="prev-btn" class="btn btn-secondary" disabled>Previous</button>
+                <button id="next-btn" class="btn btn-primary">Next</button>
+                <button id="submit-btn" class="btn btn-success hidden">Submit Quiz</button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-section" class="section hidden">
+            <h2>Quiz Results</h2>
+            <div class="score-summary">
+                <div class="score-circle">
+                    <span id="score-percentage">0%</span>
+                </div>
+                <p class="score-text">You scored <span id="score">0</span> out of <span id="total">0</span></p>
+            </div>
+            
+            <h3>Review Your Answers</h3>
+            <div id="review-container"></div>
+            
+            <div class="result-actions">
+                <button id="restart-btn" class="btn btn-primary">Take New Quiz</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    
+    <!-- MVC Architecture -->
+    <script src="models.js"></script>
+    <script src="views.js"></script>
+    <script src="controllers.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
