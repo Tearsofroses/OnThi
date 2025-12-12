@@ -24,6 +24,21 @@ class QuizView {
         // Cache for shared quizzes to avoid data-attribute size limits
         this.sharedQuizzesCache = [];
         
+        // AI Chat elements
+        this.aiChatSidebar = document.getElementById('ai-chat-sidebar');
+        this.chatToggleBtn = document.getElementById('chat-toggle-btn');
+        this.chatStatus = document.getElementById('chat-status');
+        this.chatMessages = document.getElementById('chat-messages');
+        this.chatInput = document.getElementById('chat-input');
+        this.chatSendBtn = document.getElementById('chat-send-btn');
+        this.aiSettingsBtn = document.getElementById('ai-settings-btn');
+        this.aiSettingsModal = document.getElementById('ai-settings-modal');
+        this.aiProviderSelect = document.getElementById('ai-provider-select');
+        this.aiApiKeyInput = document.getElementById('ai-api-key-input');
+        this.aiSettingsSaveBtn = document.getElementById('ai-settings-save-btn');
+        this.aiSettingsCancelBtn = document.getElementById('ai-settings-cancel-btn');
+        this.aiSettingsClearBtn = document.getElementById('ai-settings-clear-btn');
+        
         // Quiz elements
         this.questionText = document.getElementById('question-text');
         this.optionsContainer = document.getElementById('options-container');
@@ -265,5 +280,71 @@ class QuizView {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // AI Chat methods
+    updateChatStatus(isConfigured, provider = null) {
+        if (isConfigured) {
+            this.chatStatus.className = 'chat-status configured';
+            this.chatStatus.textContent = `✅ AI Ready (${provider})`;
+        } else {
+            this.chatStatus.className = 'chat-status';
+            this.chatStatus.textContent = '⚙️ Configure AI in settings to get help';
+        }
+    }
+
+    addChatMessage(content, role = 'assistant') {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${role}`;
+        messageDiv.textContent = content;
+        this.chatMessages.appendChild(messageDiv);
+        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+    }
+
+    clearChat() {
+        this.chatMessages.innerHTML = `
+            <div class="chat-message system">
+                👋 Hi! I'm your AI study assistant. Ask me anything about the current question!
+            </div>
+        `;
+    }
+
+    setChatLoading(isLoading) {
+        this.chatSendBtn.disabled = isLoading;
+        this.chatInput.disabled = isLoading;
+        if (isLoading) {
+            this.chatSendBtn.textContent = '...';
+        } else {
+            this.chatSendBtn.textContent = 'Send';
+        }
+    }
+
+    toggleChatSidebar() {
+        this.aiChatSidebar.classList.toggle('collapsed');
+    }
+
+    showAISettings() {
+        this.aiSettingsModal.classList.remove('hidden');
+    }
+
+    hideAISettings() {
+        this.aiSettingsModal.classList.add('hidden');
+    }
+
+    getAIConfig() {
+        return {
+            provider: this.aiProviderSelect.value,
+            apiKey: this.aiApiKeyInput.value
+        };
+    }
+
+    setAIConfig(provider, apiKey) {
+        this.aiProviderSelect.value = provider || '';
+        this.aiApiKeyInput.value = apiKey || '';
+    }
+
+    clearAIForm() {
+        this.aiProviderSelect.value = '';
+        this.aiApiKeyInput.value = '';
     }
 }

@@ -9,6 +9,7 @@ class QuizController {
         this.currentQuiz = null;
         this.currentQuestionIndex = 0;
         this.userAnswers = {};
+        this.aiHelper = new AIHelper();
         
         this.initEventListeners();
     }
@@ -18,6 +19,7 @@ class QuizController {
             await this.model.init();
             await this.loadSavedQuizzes();
             await this.loadSharedQuizzes();
+            this.updateAIChatStatus();
         } catch (error) {
             console.error('Initialization error:', error);
             this.view.showAlert('Error initializing application: ' + error.message);
@@ -48,6 +50,34 @@ class QuizController {
         
         // Results section
         this.view.restartBtn.addEventListener('click', () => this.restart());
+        
+        // AI Chat event listeners
+        this.view.chatToggleBtn.addEventListener('click', () => this.view.toggleChatSidebar());
+        this.view.chatSendBtn.addEventListener('click', () => this.sendChatMessage());
+        this.view.chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.sendChatMessage();
+            }
+        });
+        
+        // Quick action buttons
+        document.querySelectorAll('.quick-action-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.handleQuickAction(btn.dataset.action));
+        });
+        
+        // AI Settings
+        this.view.aiSettingsBtn.addEventListener('click', () => this.openAISettings());
+        this.view.aiSettingsSaveBtn.addEventListener('click', () => this.saveAISettings());
+        this.view.aiSettingsCancelBtn.addEventListener('click', () => this.view.hideAISettings());
+        this.view.aiSettingsClearBtn.addEventListener('click', () => this.clearAISettings());
+        
+        // Close modal on overlay click
+        this.view.aiSettingsModal.addEventListener('click', (e) => {
+            if (e.target === this.view.aiSettingsModal) {
+                this.view.hideAISettings();
+            }
+        });
     }
 
     async loadSavedQuizzes() {
@@ -299,6 +329,10 @@ class QuizController {
             this.currentQuestionIndex = 0;
             this.userAnswers = {};
             
+            // Clear AI chat history for new quiz
+            this.aiHelper.clearHistory();
+            this.view.clearChat();
+            
             // Show quiz section
             this.view.showSection(this.view.quizSection);
             this.displayCurrentQuestion();
@@ -485,6 +519,130 @@ class QuizController {
             this.view.showAlert('Error importing quizzes: ' + error.message);
             console.error(error);
             event.target.value = '';
+        }
+    }
+
+    // AI Chat Methods
+    updateAIChatStatus() {
+        const providerNames = {
+            'openai': 'ChatGPT',
+            'gemini': 'Gemini',
+            'groq': 'Groq'
+        };
+        const provider = providerNames[this.aiHelper.provider];
+        this.view.updateChatStatus(this.aiHelper.isConfigured(), provider);
+    }
+
+    async sendChatMessage() {
+        const message = this.view.chatInput.value.trim();
+        if (!message) return;
+
+        if (!this.aiHelper.isConfigured()) {
+            this.view.showAlert('Please configure AI in settings first!');
+            this.openAISettings();
+            return;
+        }
+
+        // Add user message to chat
+        this.view.addChatMessage(message, 'user');
+        this.view.chatInput.value = '';
+        this.view.setChatLoading(true);
+
+        try {
+            const currentQuestion = this.getCurrentQuestion();
+            const response = await this.aiHelper.sendMessage(message, currentQuestion);
+            this.view.addChatMessage(response, 'assistant');
+        } catch (error) {
+            this.view.addChatMessage('❌ Error: ' + error.message, 'system');
+            console.error('AI Chat error:', error);
+        } finally {
+            this.view.setChatLoading(false);
+        }
+    }
+
+    async handleQuickAction(action) {
+        if (!this.aiHelper.isConfigured()) {
+            this.view.showAlert('Please configure AI in settings first!');
+            this.openAISettings();
+            return;
+        }
+
+        let prompt;
+        switch (action) {
+            case 'explain':
+                prompt = this.aiHelper.getExplanationPrompt();
+                break;
+            case 'hint':
+                prompt = this.aiHelper.getHintPrompt();
+                break;
+            case 'breakdown':
+                prompt = this.aiHelper.getBreakdownPrompt();
+                break;
+            case 'topic':
+                prompt = this.aiHelper.getTopicPrompt();
+                break;
+            default:
+                return;
+        }
+
+        this.view.addChatMessage(prompt, 'user');
+        this.view.setChatLoading(true);
+
+        try {
+            const currentQuestion = this.getCurrentQuestion();
+            const response = await this.aiHelper.sendMessage(prompt, currentQuestion);
+            this.view.addChatMessage(response, 'assistant');
+        } catch (error) {
+            this.view.addChatMessage('❌ Error: ' + error.message, 'system');
+            console.error('AI Chat error:', error);
+        } finally {
+            this.view.setChatLoading(false);
+        }
+    }
+
+    getCurrentQuestion() {
+        if (!this.currentQuiz || !this.currentQuiz.questions[this.currentQuestionIndex]) {
+            return null;
+        }
+        return this.currentQuiz.questions[this.currentQuestionIndex];
+    }
+
+    openAISettings() {
+        // Load current config
+        if (this.aiHelper.provider && this.aiHelper.apiKey) {
+            this.view.setAIConfig(this.aiHelper.provider, this.aiHelper.apiKey);
+        }
+        this.view.showAISettings();
+    }
+
+    saveAISettings() {
+        const config = this.view.getAIConfig();
+        
+        if (!config.provider) {
+            this.view.showAlert('Please select an AI provider!');
+            return;
+        }
+        
+        if (!config.apiKey || config.apiKey.trim().length < 10) {
+            this.view.showAlert('Please enter a valid API key!');
+            return;
+        }
+
+        this.aiHelper.saveConfig(config.provider, config.apiKey);
+        this.updateAIChatStatus();
+        this.view.hideAISettings();
+        this.view.showAlert('✅ AI Assistant configured successfully!');
+        this.view.clearChat();
+    }
+
+    clearAISettings() {
+        if (this.view.showConfirm('Clear AI configuration? Your API key will be removed from this session.')) {
+            this.aiHelper.clearConfig();
+            this.view.clearAIForm();
+            this.updateAIChatStatus();
+            this.view.hideAISettings();
+            this.view.clearChat();
+            this.view.showAlert('AI configuration cleared.');
         }
     }
 }
