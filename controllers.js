@@ -28,6 +28,7 @@ class QuizController {
         // Input section
         this.view.startQuizBtn.addEventListener('click', () => this.startQuiz());
         this.view.saveQuizBtn.addEventListener('click', () => this.saveQuiz());
+        this.view.publishQuizBtn.addEventListener('click', () => this.publishToCommunity());
         this.view.exportAllBtn.addEventListener('click', () => this.exportAllQuizzes());
         this.view.importFileInput.addEventListener('change', (e) => this.importQuizzes(e));
         this.view.refreshSharedBtn.addEventListener('click', () => this.loadSharedQuizzes());
@@ -182,6 +183,54 @@ class QuizController {
                 this.view.showAlert('Error saving quiz: ' + error.message);
                 console.error(error);
             }
+        }
+    }
+
+    async publishToCommunity() {
+        const content = this.view.getInputValue();
+        
+        if (!content) {
+            this.view.showAlert('Please paste quiz content before publishing!');
+            return;
+        }
+        
+        try {
+            // Parse quiz data
+            const { questions, answers } = Quiz.parseFromText(content);
+            
+            if (questions.length === 0) {
+                this.view.showAlert('No valid questions found. Please check your format.');
+                return;
+            }
+            
+            // Get custom title or generate from first question
+            let title = this.view.getQuizName();
+            if (!title) {
+                title = questions[0].text.substring(0, 60) + 
+                       (questions[0].text.length > 60 ? '...' : '');
+            }
+            
+            // Confirm before publishing
+            const proceed = this.view.showConfirm(
+                `Publish "${title}" to community?\n\nThis will make your quiz visible to everyone using this app.`
+            );
+            
+            if (!proceed) return;
+            
+            // Create quiz object
+            const quiz = new Quiz(null, title, content, questions, answers, new Date().toISOString());
+            
+            // Publish to community
+            await this.model.publishQuizToCommunity(quiz);
+            
+            this.view.showAlert('✅ Quiz published to community successfully!\n\nEveryone can now see and use your quiz.');
+            
+            // Reload shared quizzes to show the new one
+            await this.loadSharedQuizzes();
+            
+        } catch (error) {
+            this.view.showAlert('Error publishing quiz: ' + error.message);
+            console.error(error);
         }
     }
 

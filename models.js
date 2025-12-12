@@ -92,6 +92,35 @@ class StorageModel {
         this.dbName = 'QuizDatabase';
         this.storeName = 'quizzes';
         this.sharedQuizzesUrl = 'shared-quizzes.json';
+        this.firebaseInitialized = false;
+        this.firebaseDb = null;
+        
+        // Initialize Firebase
+        this.initFirebase();
+    }
+
+    initFirebase() {
+        try {
+            const firebaseConfig = {
+                apiKey: "AIzaSyBXz4_LZJ3YvYEYqKhN8KQ_xP8xvL6HRQU",
+                authDomain: "onthi-quizzes.firebaseapp.com",
+                databaseURL: "https://onthi-quizzes-default-rtdb.firebaseio.com",
+                projectId: "onthi-quizzes",
+                storageBucket: "onthi-quizzes.firebasestorage.app",
+                messagingSenderId: "1065337890883",
+                appId: "1:1065337890883:web:a8b6f4c3d2e1f0g9h8i7j6"
+            };
+            
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            this.firebaseDb = firebase.database();
+            this.firebaseInitialized = true;
+            console.log('Firebase initialized successfully');
+        } catch (error) {
+            console.error('Firebase initialization error:', error);
+            this.firebaseInitialized = false;
+        }
     }
 
     async init() {
@@ -206,22 +235,68 @@ class StorageModel {
     }
 
     async loadSharedQuizzes() {
-        try {
-            // Add cache-busting to always get latest version
-            const timestamp = new Date().getTime();
-            const response = await fetch(`${this.sharedQuizzesUrl}?t=${timestamp}`);
-            
-            if (!response.ok) {
-                console.error('Failed to load shared quizzes, status:', response.status);
-                throw new Error('Failed to load shared quizzes');
+        if (this.firebaseInitialized) {
+            try {
+                const snapshot = await this.firebaseDb.ref('sharedQuizzes')
+                    .orderByChild('timestamp')
+                    .limitToLast(50)
+                    .once('value');
+                
+                const quizzes = [];
+                snapshot.forEach((childSnapshot) => {
+                    const quiz = childSnapshot.val();
+                    quiz.id = childSnapshot.key;
+                    quizzes.push(quiz);
+                });
+                
+                console.log('Loaded Firebase quizzes:', quizzes.length);
+                return quizzes.reverse(); // Most recent first
+            } catch (error) {
+                console.error('Error loading Firebase quizzes:', error);
+                return [];
             }
+        } else {
+            // Fallback to JSON file
+            try {
+                const timestamp = new Date().getTime();
+                const response = await fetch(`${this.sharedQuizzesUrl}?t=${timestamp}`);
+                
+                if (!response.ok) {
+                    console.error('Failed to load shared quizzes, status:', response.status);
+                    return [];
+                }
+                
+                const data = await response.json();
+                console.log('Loaded shared quizzes from JSON:', data);
+                return data.sharedQuizzes || [];
+            } catch (error) {
+                console.error('Error loading shared quizzes:', error);
+                return [];
+            }
+        }
+    }
+
+    async publishQuizToCommunity(quiz) {
+        if (!this.firebaseInitialized) {
+            throw new Error('Community sharing is not available. Please try again later.');
+        }
+        
+        try {
+            const quizData = {
+                title: quiz.title,
+                content: quiz.content,
+                questions: quiz.questions,
+                answers: quiz.answers,
+                timestamp: new Date().toISOString(),
+                questionCount: quiz.questions.length
+            };
             
-            const data = await response.json();
-            console.log('Loaded shared quizzes:', data);
-            return data.sharedQuizzes || [];
+            const newQuizRef = await this.firebaseDb.ref('sharedQuizzes').push(quizData);
+            console.log('Quiz published to community:', newQuizRef.key);
+            return newQuizRef.key;
         } catch (error) {
-            console.error('Error loading shared quizzes:', error);
-            return [];
+            console.error('Error publishing quiz:', error);
+            throw new Error('Failed to publish quiz to community: ' + error.message);
         }
     }
 }

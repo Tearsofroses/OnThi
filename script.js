@@ -237,7 +237,7 @@ prevBtn.addEventListener('click', showPreviousQuestion);
 nextBtn.addEventListener('click', showNextQuestion);
 submitBtn.addEventListener('click', submitQuiz);
 restartBtn.addEventListener('click', restartQuiz);
-Save quiz
+// Save quiz
 async function saveQuiz() {
     const content = quizInput.value.trim();
     

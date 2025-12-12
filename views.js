@@ -14,6 +14,7 @@ class QuizView {
         this.quizInput = document.getElementById('quiz-input');
         this.startQuizBtn = document.getElementById('start-quiz-btn');
         this.saveQuizBtn = document.getElementById('save-quiz-btn');
+        this.publishQuizBtn = document.getElementById('publish-quiz-btn');
         this.exportAllBtn = document.getElementById('export-all-btn');
         this.importFileInput = document.getElementById('import-file');
         this.savedQuizzesList = document.getElementById('saved-quizzes-list');
