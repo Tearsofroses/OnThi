@@ -49,8 +49,7 @@ class AIHelper {
             ],
             'gemini': [
                 { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Recommended - Free)' },
-                { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Most Capable)' },
-                { value: 'gemini-pro', label: 'Gemini Pro (Legacy)' }
+                { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Most Capable)' }
             ],
             'groq': [
                 { value: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B (Recommended)' },
