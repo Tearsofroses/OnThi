@@ -227,6 +227,7 @@ class QuizView {
     // Clear input
     clearInput() {
         this.quizInput.value = '';
+        this.quizNameInput.value = '';
     }
 
     // Show alert
