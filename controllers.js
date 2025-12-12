@@ -10,10 +10,11 @@ class QuizController {
         this.currentQuestionIndex = 0;
         this.userAnswers = {};
         this.aiHelper = new AIHelper();
-        this.sessionKey = 'quizSession';
+        this.sessionsKey = 'quizSessions';
+        this.currentSessionId = null;
         
         this.initEventListeners();
-        this.loadSession(); // Restore previous session if exists
+        this.loadAllSessions(); // Load and display all sessions
     }
 
     async init() {
@@ -334,10 +335,11 @@ class QuizController {
             }
             
             // Create quiz object
-            const title = 'Current Quiz';
+            const title = this.view.getQuizName() || 'Current Quiz';
             this.currentQuiz = new Quiz(null, title, content, questions, answers);
             this.currentQuestionIndex = 0;
             this.userAnswers = {};
+            this.currentSessionId = null; // New session
             
             // Clear AI chat history for new quiz
             this.aiHelper.clearHistory();
@@ -348,7 +350,7 @@ class QuizController {
             this.displayCurrentQuestion();
             
             // Save initial session
-            this.saveSession();
+            this.saveCurrentSession();
             
         } catch (error) {
             this.view.showAlert('Error parsing quiz: ' + error.message);
@@ -382,14 +384,14 @@ class QuizController {
         });
         
         // Save session after answering
-        this.saveSession();
+        this.saveCurrentSession();
     }
 
     previousQuestion() {
         if (this.currentQuestionIndex > 0) {
             this.currentQuestionIndex--;
             this.displayCurrentQuestion();
-            this.saveSession();
+            this.saveCurrentSession();
         }
     }
 
@@ -397,7 +399,7 @@ class QuizController {
         if (this.currentQuestionIndex < this.currentQuiz.questions.length - 1) {
             this.currentQuestionIndex++;
             this.displayCurrentQuestion();
-            this.saveSession();
+            this.saveCurrentSession();
         }
     }
 
@@ -434,8 +436,8 @@ class QuizController {
             this.currentQuiz.answers
         );
         
-        // Clear session after completion
-        this.clearSession();
+        // Save completed session
+        this.saveCompletedSession(score);
     }
 
     saveSession() {
@@ -512,7 +514,7 @@ class QuizController {
         this.currentQuiz = null;
         this.currentQuestionIndex = 0;
         this.userAnswers = {};
-        this.clearSession();
+        this.currentSessionId = null;
         this.view.clearInput();
         this.view.showSection(this.view.inputSection);
     }

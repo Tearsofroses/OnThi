@@ -55,6 +55,22 @@ header h1 {
     border: 2px solid #667eea;
 }
 
+.saved-quizzes.sessions-section {
+    background: #fff8e1;
+    border-color: #ffa726;
+}
+
+.sessions-section h3 {
+    color: #f57c00;
+    margin-bottom: 15px;
+}
+
+.sessions-container {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
 .saved-quizzes.shared-section {
     background: #f0fff4;
     border-color: #48bb78;
@@ -115,6 +131,25 @@ header h1 {
 .quiz-item:hover {
     border-color: #667eea;
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.session-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+.session-badge.completed {
+    background: #d1f4e0;
+    color: #0f7d3e;
+}
+
+.session-badge.ongoing {
+    background: #fff3cd;
+    color: #856404;
 }
 
 .quiz-info {
@@ -550,6 +585,8 @@ header h1 {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    max-height: calc(100vh - 450px);
+    min-height: 300px;
 }
 
 .chat-message {
