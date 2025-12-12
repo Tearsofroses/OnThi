@@ -278,6 +278,25 @@ class StorageModel {
         }
     }
 
+    async deleteSharedQuiz(quizId) {
+        if (!this.firebaseInitialized) {
+            throw new Error('Community sharing is not available. Please try again later.');
+        }
+        
+        try {
+            // Authenticate anonymously if not already signed in
+            if (!this.firebaseAuth.currentUser) {
+                await this.firebaseAuth.signInAnonymously();
+            }
+            
+            await this.firebaseDb.ref(`sharedQuizzes/${quizId}`).remove();
+            console.log('Quiz deleted from community:', quizId);
+        } catch (error) {
+            console.error('Error deleting quiz:', error);
+            throw new Error('Failed to delete quiz from community: ' + error.message);
+        }
+    }
+
     async publishQuizToCommunity(quiz) {
         if (!this.firebaseInitialized) {
             throw new Error('Community sharing is not available. Please try again later.');

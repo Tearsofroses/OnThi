@@ -126,6 +126,7 @@ class QuizView {
                     <div class="quiz-actions">
                         <button class="btn btn-primary btn-small load-shared-quiz-btn">Load</button>
                         <button class="btn btn-secondary btn-small save-shared-quiz-btn">Save to My Quizzes</button>
+                        <button class="btn btn-danger btn-small delete-shared-quiz-btn">Delete</button>
                     </div>
                 </div>
             `;

@@ -105,6 +105,17 @@ class QuizController {
                     }
                 });
             });
+            
+            document.querySelectorAll('.delete-shared-quiz-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const quizItem = e.target.closest('.quiz-item');
+                    const quizIndex = parseInt(quizItem.dataset.quizIndex);
+                    if (quizIndex >= 0 && this.view.sharedQuizzesCache[quizIndex]) {
+                        const quiz = this.view.sharedQuizzesCache[quizIndex];
+                        await this.deleteSharedQuiz(quiz);
+                    }
+                });
+            });
         } catch (error) {
             console.error('Error loading shared quizzes:', error);
             this.view.showAlert('Error loading community quizzes. Please try again.');
@@ -175,6 +186,23 @@ class QuizController {
                 this.view.showAlert('Error saving quiz: ' + error.message);
                 console.error(error);
             }
+        }
+    }
+
+    async deleteSharedQuiz(quiz) {
+        const proceed = this.view.showConfirm(
+            `Delete "${quiz.title}" from community?\n\nThis will remove the quiz for everyone.`
+        );
+        
+        if (!proceed) return;
+        
+        try {
+            await this.model.deleteSharedQuiz(quiz.id);
+            this.view.showAlert('✅ Quiz deleted from community successfully!');
+            await this.loadSharedQuizzes();
+        } catch (error) {
+            this.view.showAlert('Error deleting quiz: ' + error.message);
+            console.error(error);
         }
     }
 
