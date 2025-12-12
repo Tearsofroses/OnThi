@@ -364,6 +364,7 @@ class StorageModel {
                 answers: quiz.answers,
                 hash: quiz.hash,
                 timestamp: quiz.timestamp || new Date().toISOString(),
+                course: quiz.course || '',
                 questionCount: quiz.questions.length
             };
             
@@ -383,7 +384,7 @@ class StorageModel {
             request.onsuccess = () => {
                 const quizzes = request.result.map(data => 
                     new Quiz(data.id, data.title, data.content, 
-                            data.questions, data.answers, data.timestamp)
+                            data.questions, data.answers, data.timestamp, data.course)
                 );
                 resolve(quizzes);
             };
@@ -401,7 +402,7 @@ class StorageModel {
                 if (request.result) {
                     const data = request.result;
                     resolve(new Quiz(data.id, data.title, data.content, 
-                                    data.questions, data.answers, data.timestamp));
+                                   data.questions, data.answers, data.timestamp, data.course));
                 } else {
                     resolve(null);
                 }
@@ -512,6 +513,7 @@ class StorageModel {
                 questions: quiz.questions,
                 answers: quiz.answers,
                 timestamp: new Date().toISOString(),
+                course: quiz.course || '',
                 questionCount: quiz.questions.length,
                 publishedBy: this.firebaseAuth.currentUser.uid
             };
