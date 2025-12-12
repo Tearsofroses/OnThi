@@ -212,10 +212,12 @@ class StorageModel {
             const response = await fetch(`${this.sharedQuizzesUrl}?t=${timestamp}`);
             
             if (!response.ok) {
+                console.error('Failed to load shared quizzes, status:', response.status);
                 throw new Error('Failed to load shared quizzes');
             }
             
             const data = await response.json();
+            console.log('Loaded shared quizzes:', data);
             return data.sharedQuizzes || [];
         } catch (error) {
             console.error('Error loading shared quizzes:', error);

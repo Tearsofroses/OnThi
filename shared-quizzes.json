@@ -1,5 +1,39 @@
 {
   "version": "1.0",
-  "lastUpdated": "2025-12-12T00:00:00.000Z",
-  "sharedQuizzes": []
+  "lastUpdated": "2025-12-12T08:00:00.000Z",
+  "sharedQuizzes": [
+    {
+      "title": "Sample Quiz - Database Basics",
+      "content": "1. (LO 1.1) Which of the following best describes a Database?\n\nA. A collection of unrelated data\n\nB. An organized collection of structured information\n\nC. A single file containing text\n\nD. A spreadsheet application\n\n2. (LO 1.2) What does SQL stand for?\n\nA. Simple Query Language\n\nB. Structured Query Language\n\nC. System Quality Language\n\nD. Standard Question Language\n\n1B2B",
+      "timestamp": "2025-12-12T08:00:00.000Z",
+      "questions": [
+        {
+          "number": 1,
+          "lo": "(LO 1.1)",
+          "text": "Which of the following best describes a Database?",
+          "options": [
+            {"label": "A", "text": "A collection of unrelated data"},
+            {"label": "B", "text": "An organized collection of structured information"},
+            {"label": "C", "text": "A single file containing text"},
+            {"label": "D", "text": "A spreadsheet application"}
+          ]
+        },
+        {
+          "number": 2,
+          "lo": "(LO 1.2)",
+          "text": "What does SQL stand for?",
+          "options": [
+            {"label": "A", "text": "Simple Query Language"},
+            {"label": "B", "text": "Structured Query Language"},
+            {"label": "C", "text": "System Quality Language"},
+            {"label": "D", "text": "Standard Question Language"}
+          ]
+        }
+      ],
+      "answers": {
+        "1": "B",
+        "2": "B"
+      }
+    }
+  ]
 }
