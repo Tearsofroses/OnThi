@@ -145,8 +145,8 @@ class QuizView {
             
             this.optionsContainer.appendChild(optionDiv);
         });
-        current question
-    displayQuestion(question, questionIndex, totalQuestions, userAnswer = null
+        
+        // Update navigation
         this.updateNavigation(questionIndex, totalQuestions);
     }
 
