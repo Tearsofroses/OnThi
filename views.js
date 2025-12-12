@@ -34,6 +34,7 @@ class QuizView {
         this.aiSettingsBtn = document.getElementById('ai-settings-btn');
         this.aiSettingsModal = document.getElementById('ai-settings-modal');
         this.aiProviderSelect = document.getElementById('ai-provider-select');
+        this.aiModelSelect = document.getElementById('ai-model-select');
         this.aiApiKeyInput = document.getElementById('ai-api-key-input');
         this.aiSettingsSaveBtn = document.getElementById('ai-settings-save-btn');
         this.aiSettingsCancelBtn = document.getElementById('ai-settings-cancel-btn');
@@ -334,17 +335,42 @@ class QuizView {
     getAIConfig() {
         return {
             provider: this.aiProviderSelect.value,
+            model: this.aiModelSelect.value,
             apiKey: this.aiApiKeyInput.value
         };
     }
 
-    setAIConfig(provider, apiKey) {
+    setAIConfig(provider, apiKey, model) {
         this.aiProviderSelect.value = provider || '';
         this.aiApiKeyInput.value = apiKey || '';
+        
+        // Trigger provider change to populate models
+        if (provider) {
+            this.updateModelOptions(provider);
+            this.aiModelSelect.value = model || '';
+        }
+    }
+
+    updateModelOptions(provider) {
+        const aiHelper = window.aiHelperInstance;
+        if (!aiHelper || !provider) {
+            this.aiModelSelect.disabled = true;
+            this.aiModelSelect.innerHTML = '<option value="">-- Select provider first --</option>';
+            return;
+        }
+
+        const models = aiHelper.getAvailableModels(provider);
+        this.aiModelSelect.disabled = false;
+        this.aiModelSelect.innerHTML = models.map(model => 
+            `<option value="${model.value}">${model.label}</option>`
+        ).join('');
     }
 
     clearAIForm() {
         this.aiProviderSelect.value = '';
+        this.aiModelSelect.value = '';
+        this.aiModelSelect.disabled = true;
+        this.aiModelSelect.innerHTML = '<option value="">-- Select provider first --</option>';
         this.aiApiKeyInput.value = '';
     }
 }

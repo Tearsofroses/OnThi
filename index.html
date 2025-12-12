@@ -159,6 +159,15 @@ D. A hierarchy of objects.</pre>
                     </select>
                 </div>
                 <div class="form-group">
+                    <label for="ai-model-select">Choose Model:</label>
+                    <select id="ai-model-select" disabled>
+                        <option value="">-- Select provider first --</option>
+                    </select>
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        💡 Tip: gpt-4o-mini and Gemini Flash are the cheapest/free options
+                    </small>
+                </div>
+                <div class="form-group">
                     <label for="ai-api-key-input">API Key:</label>
                     <input type="password" id="ai-api-key-input" class="api-key-input" placeholder="Paste your API key here...">
                     <small style="color: #666; margin-top: 5px; display: block;">
@@ -208,10 +217,10 @@ D. A hierarchy of objects.</pre>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     
     <!-- MVC Architecture -->
-    <script src="ai-helper.js?v=1.0.1"></script>
+    <script src="ai-helper.js?v=1.0.2"></script>
     <script src="models.js?v=1.0.2"></script>
-    <script src="views.js?v=1.0.2"></script>
-    <script src="controllers.js?v=1.0.2"></script>
+    <script src="views.js?v=1.0.3"></script>
+    <script src="controllers.js?v=1.0.3"></script>
     <script src="app.js?v=1.0.2"></script>
 </body>
 </html>

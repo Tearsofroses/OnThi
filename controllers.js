@@ -20,6 +20,9 @@ class QuizController {
             await this.loadSavedQuizzes();
             await this.loadSharedQuizzes();
             this.updateAIChatStatus();
+            
+            // Make aiHelper globally accessible for view
+            window.aiHelperInstance = this.aiHelper;
         } catch (error) {
             console.error('Initialization error:', error);
             this.view.showAlert('Error initializing application: ' + error.message);
@@ -71,6 +74,11 @@ class QuizController {
         this.view.aiSettingsSaveBtn.addEventListener('click', () => this.saveAISettings());
         this.view.aiSettingsCancelBtn.addEventListener('click', () => this.view.hideAISettings());
         this.view.aiSettingsClearBtn.addEventListener('click', () => this.clearAISettings());
+        
+        // Provider change updates model options
+        this.view.aiProviderSelect.addEventListener('change', (e) => {
+            this.view.updateModelOptions(e.target.value);
+        });
         
         // Close modal on overlay click
         this.view.aiSettingsModal.addEventListener('click', (e) => {
@@ -610,7 +618,7 @@ class QuizController {
     openAISettings() {
         // Load current config
         if (this.aiHelper.provider && this.aiHelper.apiKey) {
-            this.view.setAIConfig(this.aiHelper.provider, this.aiHelper.apiKey);
+            this.view.setAIConfig(this.aiHelper.provider, this.aiHelper.apiKey, this.aiHelper.model);
         }
         this.view.showAISettings();
     }
@@ -623,12 +631,17 @@ class QuizController {
             return;
         }
         
+        if (!config.model) {
+            this.view.showAlert('Please select a model!');
+            return;
+        }
+        
         if (!config.apiKey || config.apiKey.trim().length < 10) {
             this.view.showAlert('Please enter a valid API key!');
             return;
         }
 
-        this.aiHelper.saveConfig(config.provider, config.apiKey);
+        this.aiHelper.saveConfig(config.provider, config.apiKey, config.model);
         this.updateAIChatStatus();
         this.view.hideAISettings();
         this.view.showAlert('✅ AI Assistant configured successfully!');
