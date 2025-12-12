@@ -196,6 +196,32 @@ header h1 {
     color: #856404;
 }
 
+.quiz-name-section {
+    margin: 15px 0;
+}
+
+.quiz-name-section label {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+#quiz-name-input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 15px;
+    transition: border-color 0.3s ease;
+}
+
+#quiz-name-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
 #quiz-input {
     width: 100%;
     min-height: 300px;

@@ -10,6 +10,7 @@ class QuizView {
         this.resultsSection = document.getElementById('results-section');
         
         // Input elements
+        this.quizNameInput = document.getElementById('quiz-name-input');
         this.quizInput = document.getElementById('quiz-input');
         this.startQuizBtn = document.getElementById('start-quiz-btn');
         this.saveQuizBtn = document.getElementById('save-quiz-btn');

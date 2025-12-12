@@ -141,9 +141,12 @@ SharedQuizzes() {
                 return;
             }
             
-            // Generate title from first question
-            const title = questions[0].text.substring(0, 60) + 
-                         (questions[0].text.length > 60 ? '...' : '');
+            // Get custom title or generate from first question
+            let title = this.view.getQuizName();
+            if (!title) {
+                title = questions[0].text.substring(0, 60) + 
+                       (questions[0].text.length > 60 ? '...' : '');
+            }
             
             // Create quiz object
             const quiz = new Quiz(null, title, content, questions, answers, new Date().toISOString());
