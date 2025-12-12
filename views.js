@@ -132,8 +132,8 @@ class QuizView {
         }).join('');
     }
 
-    // Show alert
-    showAlert(message) {
+    // Display a single question
+    displayQuestion(question, questionIndex, totalQuestions, userAnswer) {
         const questionHTML = `${question.number}. ${question.lo ? question.lo + ' ' : ''}${question.text}`;
         this.questionText.innerHTML = this.renderMath(questionHTML);
         
