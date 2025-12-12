@@ -186,7 +186,7 @@ Guidelines:
             : message;
 
         const modelName = this.model || 'gemini-1.5-flash';
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${this.apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${this.apiKey}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
