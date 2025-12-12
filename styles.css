@@ -231,6 +231,21 @@ header h1 {
     color: #856404;
 }
 
+kbd {
+    background-color: #f4f4f4;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 0 0 2px #fff inset;
+    color: #333;
+    display: inline-block;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    margin: 0 2px;
+    padding: 2px 6px;
+    white-space: nowrap;
+}
+
 .quiz-name-section {
     margin: 15px 0;
 }
@@ -409,6 +424,24 @@ header h1 {
 }
 
 /* Results Section */
+.results-with-chat-container {
+    display: flex;
+    gap: 20px;
+    min-height: 600px;
+    position: relative;
+}
+
+.results-main-content {
+    flex: 1;
+    min-width: 0;
+    transition: all 0.3s ease;
+}
+
+#results-section .ai-chat-sidebar {
+    width: 380px;
+    flex-shrink: 0;
+}
+
 .score-summary {
     text-align: center;
     margin: 30px 0;
@@ -448,6 +481,8 @@ header h1 {
 .review-item {
     background: #f8f9fa;
     border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
     padding: 20px;
     margin-bottom: 20px;
     border-left: 4px solid #667eea;
@@ -784,7 +819,8 @@ header h1 {
 }
 
 @media (max-width: 768px) {
-    .ai-chat-sidebar {
+    .ai-chat-sidebar,
+    #results-section .ai-chat-sidebar {
         width: 100%;
         position: fixed;
         top: 0;
@@ -793,7 +829,8 @@ header h1 {
         z-index: 999;
     }
     
-    .quiz-with-chat {
+    .quiz-with-chat,
+    .results-with-chat-container {
         flex-direction: column;
     }
     

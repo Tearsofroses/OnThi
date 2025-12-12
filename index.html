@@ -41,32 +41,35 @@
             </div>
             
             <div class="format-guide">
-                <h3>Expected Format:</h3>
+                <h3>Supported Formats:</h3>
                 <div class="format-example">
-                    <strong>Questions:</strong>
+                    <strong>📝 Format 1: Compact Format (with answer key)</strong>
                     <pre>1. (LO 1.1) Which of the following best describes the "Three-Schema Architecture"?
 
 A. It separates the database into three physical files for redundancy.
-
 B. It separates the user applications from the physical database to achieve data independence.
-
 C. It divides users into three levels: Administrator, Designer, and End User.
-
 D. It is a backup strategy involving three copies of data.
 
 2. (LO 1.2) In the Relational Data Model, what is a "Relation" conceptually equivalent to?
-
 A. A row in a file.
-
 B. A pointer connecting two records.
-
 C. A mathematical table of values using $R(X, Y, Z)$ notation.
-
 D. A hierarchy of objects.</pre>
                     
                     <strong>Answer Key (at the end):</strong>
                     <pre>1B2C3A4B5C...</pre>
-                    <p class="format-note"><strong>Note:</strong> LaTeX math notation like $\pi$, $\sigma$, $R(X,Y)$ is supported!</p>
+                    
+                    <strong>🎓 Format 2: Moodle/LMS HTML (includes answers!)</strong>
+                    <p class="format-note" style="margin-top: 8px; margin-bottom: 8px;">
+                        <strong>How to get the HTML:</strong>
+                        <br>1. Open your Moodle quiz review page (with correct answers shown)
+                        <br>2. Press <kbd>Ctrl+U</kbd> (Windows) or <kbd>Cmd+Option+U</kbd> (Mac) to view page source
+                        <br>3. Press <kbd>Ctrl+A</kbd> to select all, then <kbd>Ctrl+C</kbd> to copy
+                        <br>4. Paste the HTML here - it will automatically extract questions AND correct answers!
+                    </p>
+                    
+                    <p class="format-note"><strong>💡 Note:</strong> LaTeX math notation like $\pi$, $\sigma$, $R(X,Y)$ is supported! HTML format automatically extracts correct answers from the page.</p>
                 </div>
             </div>
             
@@ -195,6 +198,8 @@ D. A hierarchy of objects.</pre>
 
         <!-- Results Section -->
         <div id="results-section" class="section hidden">
+            <div class="results-with-chat-container">
+            <div class="results-main-content">
             <h2>Quiz Results</h2>
             <div class="score-summary">
                 <div class="score-circle">
@@ -209,6 +214,35 @@ D. A hierarchy of objects.</pre>
             <div class="result-actions">
                 <button id="restart-btn" class="btn btn-primary">Take New Quiz</button>
             </div>
+            </div>
+
+            <!-- AI Chat Sidebar for Review -->
+            <div id="review-chat-sidebar" class="ai-chat-sidebar">
+                <div class="chat-header">
+                    <h3>💬 Review Helper</h3>
+                    <button id="review-chat-toggle-btn" class="chat-toggle-btn">×</button>
+                </div>
+                <div id="review-chat-status" class="chat-status">
+                    ⚙️ Configure AI in settings to get help
+                </div>
+                <div id="review-chat-messages" class="chat-messages">
+                    <div class="chat-message system">
+                        👋 I can help you understand your mistakes! Click on any incorrect answer to get detailed explanations.
+                    </div>
+                </div>
+                <div class="chat-quick-actions">
+                    <button class="review-quick-action-btn" data-action="summary">📊 Mistake Summary</button>
+                    <button class="review-quick-action-btn" data-action="concepts">📚 Key Concepts</button>
+                    <button class="review-quick-action-btn" data-action="study">💡 Study Tips</button>
+                </div>
+                <div class="chat-input-area">
+                    <div class="chat-input-group">
+                        <textarea id="review-chat-input" class="chat-input" placeholder="Ask about your mistakes..." rows="2"></textarea>
+                        <button id="review-chat-send-btn" class="chat-send-btn">Send</button>
+                    </div>
+                </div>
+            </div>
+            </div>
         </div>
     </div>
 
@@ -222,10 +256,10 @@ D. A hierarchy of objects.</pre>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     
     <!-- MVC Architecture -->
-    <script src="ai-helper.js?v=1.1.0"></script>
-    <script src="models.js?v=1.0.2"></script>
-    <script src="views.js?v=1.0.3"></script>
-    <script src="controllers.js?v=1.0.8"></script>
+    <script src="ai-helper.js?v=1.1.1"></script>
+    <script src="models.js?v=1.0.5"></script>
+    <script src="views.js?v=1.0.4"></script>
+    <script src="controllers.js?v=1.1.0"></script>
     <script src="app.js?v=1.0.2"></script>
 </body>
 </html>

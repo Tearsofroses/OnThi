@@ -178,7 +178,57 @@ class AIHelper {
 
     buildSystemPrompt(questionContext) {
         if (!questionContext) return null;
+        
+        // Review mode - helping with wrong answers
+        if (questionContext.mode === 'review') {
+            if (questionContext.wrongCount === 0) {
+                return `You are an educational assistant. The student got all questions correct! Congratulate them and offer to help with deeper understanding or related topics.`;
+            }
+            
+            // If specific question is selected
+            if (questionContext.text) {
+                return `You are an educational assistant helping a student understand their mistake:
 
+Question: ${questionContext.text}
+${questionContext.lo ? 'Learning Objective: ' + questionContext.lo : ''}
+
+Options:
+${questionContext.options.map(opt => `${opt.label}. ${opt.text}`).join('\n')}
+
+Student's Answer: ${questionContext.userAnswer}
+Correct Answer: ${questionContext.correctAnswer}
+
+Rules:
+- Explain WHY the correct answer is right
+- Explain what misconception led to the wrong answer
+- Be clear, educational, and encouraging
+- Use examples if helpful
+- Keep responses focused and concise`;
+            }
+            
+            // General review mode - multiple wrong answers
+            const wrongList = questionContext.wrongAnswers.map(q => 
+                `Q${q.number}: ${q.question.substring(0, 100)}... (Your answer: ${q.userAnswer}, Correct: ${q.correctAnswer})`
+            ).join('\n');
+            
+            return `You are an educational assistant helping a student review their quiz mistakes.
+
+Quiz Summary:
+- Total Questions: ${questionContext.totalQuestions}
+- Wrong Answers: ${questionContext.wrongCount}
+
+Questions with mistakes:
+${wrongList}
+
+Rules:
+- Help identify patterns in their mistakes
+- Suggest study strategies
+- Be encouraging and constructive
+- Provide actionable advice
+- Keep responses focused and helpful`;
+        }
+
+        // Regular quiz mode
         return `You are a concise educational assistant helping a student with this MCQ:
 
 Question: ${questionContext.text}

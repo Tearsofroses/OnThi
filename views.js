@@ -214,6 +214,7 @@ class QuizView {
             
             const reviewItem = document.createElement('div');
             reviewItem.className = `review-item ${isCorrect ? 'correct' : 'incorrect'}`;
+            reviewItem.dataset.questionNumber = question.number;
             
             const correctOption = question.options.find(opt => opt.label === correctAnswer);
             const userOption = question.options.find(opt => opt.label === userAnswer);
@@ -233,11 +234,62 @@ class QuizView {
                     <div class="review-answer correct-ans">
                         <strong>Correct answer:</strong> ${correctAnswer}${this.renderMath(correctAnswerHTML)}
                     </div>
+                    <div style="color: #667eea; font-size: 0.9em; margin-top: 10px; font-style: italic;">💬 Click to get AI explanation</div>
                 ` : '<div style="color: #28a745; font-weight: 600; margin-top: 10px;">✓ Correct!</div>'}
             `;
             
+            // Add click handler for incorrect answers
+            if (!isCorrect) {
+                reviewItem.addEventListener('click', () => {
+                    this.handleReviewItemClick(question, userAnswer, correctAnswer);
+                });
+            }
+            
             this.reviewContainer.appendChild(reviewItem);
         });
+    }
+
+    handleReviewItemClick(question, userAnswer, correctAnswer) {
+        // Highlight selected item
+        document.querySelectorAll('.review-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        const selectedItem = document.querySelector(`.review-item[data-question-number="${question.number}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('selected');
+        }
+        
+        // Open chat sidebar if not already open
+        const sidebar = document.getElementById('review-chat-sidebar');
+        if (sidebar && !sidebar.classList.contains('open')) {
+            sidebar.classList.add('open');
+        }
+        
+        // Store selected question in controller for context
+        if (window.quizController) {
+            window.quizController.selectedReviewQuestion = {
+                text: question.text,
+                lo: question.lo,
+                number: question.number,
+                options: question.options,
+                userAnswer: userAnswer,
+                correctAnswer: correctAnswer
+            };
+            
+            // Auto-send explanation request
+            const input = document.getElementById('review-chat-input');
+            if (input) {
+                const correctOption = question.options.find(opt => opt.label === correctAnswer);
+                const userOption = question.options.find(opt => opt.label === userAnswer);
+                input.value = `Why is answer ${correctAnswer} (${correctOption?.text || ''}) correct instead of ${userAnswer} (${userOption?.text || ''})?`;
+                
+                // Trigger send
+                const sendBtn = document.getElementById('review-chat-send-btn');
+                if (sendBtn) {
+                    sendBtn.click();
+                }
+            }
+        }
     }
 
     // Get input value
@@ -291,6 +343,19 @@ class QuizView {
         } else {
             this.chatStatus.className = 'chat-status';
             this.chatStatus.textContent = '⚙️ Configure AI in settings to get help';
+        }
+    }
+
+    updateReviewChatStatus(isConfigured, provider = null) {
+        const reviewChatStatus = document.getElementById('review-chat-status');
+        if (!reviewChatStatus) return;
+        
+        if (isConfigured) {
+            reviewChatStatus.className = 'chat-status configured';
+            reviewChatStatus.textContent = `✅ AI Ready (${provider})`;
+        } else {
+            reviewChatStatus.className = 'chat-status';
+            reviewChatStatus.textContent = '⚙️ Configure AI in settings to get help';
         }
     }
 

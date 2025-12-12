@@ -22,9 +22,11 @@ class QuizController {
             await this.model.init();
             await this.loadSharedQuizzes();
             this.updateAIChatStatus();
+            this.updateReviewChatStatus();
             
-            // Make aiHelper globally accessible for view
+            // Make aiHelper and controller globally accessible for view
             window.aiHelperInstance = this.aiHelper;
+            window.quizController = this;
         } catch (error) {
             console.error('Initialization error:', error);
             this.view.showAlert('Error initializing application: ' + error.message);
@@ -54,6 +56,33 @@ class QuizController {
         
         // Results section
         this.view.restartBtn.addEventListener('click', () => this.restart());
+        
+        // Review Chat event listeners
+        const reviewChatToggleBtn = document.getElementById('review-chat-toggle-btn');
+        const reviewChatSendBtn = document.getElementById('review-chat-send-btn');
+        const reviewChatInput = document.getElementById('review-chat-input');
+        
+        if (reviewChatToggleBtn) {
+            reviewChatToggleBtn.addEventListener('click', () => this.toggleReviewChat());
+        }
+        if (reviewChatSendBtn) {
+            reviewChatSendBtn.addEventListener('click', () => this.sendReviewChatMessage());
+        }
+        if (reviewChatInput) {
+            reviewChatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendReviewChatMessage();
+                }
+            });
+        }
+        
+        // Review quick action buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('review-quick-action-btn')) {
+                this.handleReviewQuickAction(e.target.dataset.action);
+            }
+        });
         
         // AI Chat event listeners
         this.view.chatToggleBtn.addEventListener('click', () => this.view.toggleChatSidebar());
@@ -338,6 +367,45 @@ class QuizController {
             if (questions.length === 0) {
                 this.view.showAlert('No valid questions found. Please check your input format.');
                 return;
+            }
+            
+            // Check if answers are missing (Moodle format doesn't include answers)
+            if (Object.keys(answers).length === 0) {
+                const needsAnswers = this.view.showConfirm(
+                    `Found ${questions.length} questions, but no answer key detected.\n\n` +
+                    `This looks like a Moodle/LMS export which doesn't include answers.\n\n` +
+                    `Would you like to add the answer key now?\n` +
+                    `(Format: 1A 2B 3C 4D... or on separate lines)`
+                );
+                
+                if (needsAnswers) {
+                    const answerKey = prompt(
+                        'Enter answer key:\n' +
+                        'Format examples:\n' +
+                        '• 1A 2B 3C 4D 5A...\n' +
+                        '• Or one per line: 1A\\n2B\\n3C...\n\n' +
+                        'Enter answers:'
+                    );
+                    
+                    if (answerKey) {
+                        // Parse the answer key
+                        const answerMatches = answerKey.matchAll(/(\d+)([A-D])/gi);
+                        for (const match of answerMatches) {
+                            answers[parseInt(match[1])] = match[2].toUpperCase();
+                        }
+                        
+                        if (Object.keys(answers).length === 0) {
+                            this.view.showAlert('No valid answers found in the answer key. Please try again.');
+                            return;
+                        }
+                    } else {
+                        this.view.showAlert('Answer key is required to check your answers!');
+                        return;
+                    }
+                } else {
+                    this.view.showAlert('Answer key is required to grade the quiz!');
+                    return;
+                }
             }
             
             // Create quiz object
@@ -643,6 +711,7 @@ class QuizController {
         this.currentQuestionIndex = 0;
         this.userAnswers = {};
         this.currentSessionId = null;
+        this.selectedReviewQuestion = null;
         this.view.clearInput();
         this.view.showSection(this.view.inputSection);
     }
@@ -753,6 +822,16 @@ class QuizController {
         };
         const provider = providerNames[this.aiHelper.provider];
         this.view.updateChatStatus(this.aiHelper.isConfigured(), provider);
+    }
+
+    updateReviewChatStatus() {
+        const providerNames = {
+            'openai': 'ChatGPT',
+            'gemini': 'Gemini',
+            'groq': 'Groq'
+        };
+        const provider = providerNames[this.aiHelper.provider];
+        this.view.updateReviewChatStatus(this.aiHelper.isConfigured(), provider);
     }
 
     async sendChatMessage() {
@@ -922,6 +1001,7 @@ class QuizController {
 
         this.aiHelper.saveConfig(config.provider, config.apiKey, config.model);
         this.updateAIChatStatus();
+        this.updateReviewChatStatus();
         this.view.hideAISettings();
         this.view.showAlert('✅ AI Assistant configured successfully!');
         this.view.clearChat();
@@ -932,6 +1012,7 @@ class QuizController {
             this.aiHelper.clearConfig();
             this.view.clearAIForm();
             this.updateAIChatStatus();
+            this.updateReviewChatStatus();
             this.view.hideAISettings();
             this.view.clearChat();
             this.view.showAlert('AI configuration cleared.');

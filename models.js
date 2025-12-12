@@ -23,7 +23,27 @@ class Quiz {
         return hash.toString(36);
     }
 
+    static detectFormat(text) {
+        // Check for Moodle/LMS format indicators
+        if ((text.includes('Question text') || text.includes('Question 1')) && 
+            (text.includes('Select one:') || text.includes('Flag question') || 
+             text.includes('Mark') && text.includes('out of'))) {
+            return 'moodle';
+        }
+        // Default to compact format
+        return 'compact';
+    }
+
     static parseFromText(text) {
+        const format = this.detectFormat(text);
+        
+        if (format === 'moodle') {
+            return this.parseMoodleFormat(text);
+        }
+        return this.parseCompactFormat(text);
+    }
+
+    static parseCompactFormat(text) {
         const questions = [];
         const answers = {};
         
@@ -64,7 +84,7 @@ class Quiz {
             const optionMatch = line.match(/^([A-D])\.\s*(.+)/);
             if (optionMatch && currentQuestion && expectingOptions) {
                 currentQuestion.options.push({
-                    label: optionMatch[1],
+                    label: optionMatch[1].toUpperCase(),
                     text: optionMatch[2]
                 });
                 
@@ -78,6 +98,182 @@ class Quiz {
             questions.push(currentQuestion);
         }
         
+        return { questions, answers };
+    }
+
+    static parseMoodleFormat(text) {
+        const questions = [];
+        const answers = {};
+        
+        // Check if input is HTML
+        if (text.trim().startsWith('<!DOCTYPE') || text.includes('<html')) {
+            return this.parseMoodleHTML(text);
+        }
+        
+        // Otherwise parse as text (legacy support)
+        return this.parseMoodleText(text);
+    }
+
+    static parseMoodleHTML(html) {
+        const questions = [];
+        const answers = {};
+        
+        // Create a DOM parser
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Find all question containers
+        const questionElements = doc.querySelectorAll('.que.multichoice');
+        
+        questionElements.forEach((queElement) => {
+            // Extract question number
+            const qnoElement = queElement.querySelector('.qno');
+            if (!qnoElement) return;
+            
+            const questionNumber = parseInt(qnoElement.textContent.trim());
+            
+            // Extract question text
+            const qtextElement = queElement.querySelector('.qtext');
+            if (!qtextElement) return;
+            
+            const questionText = qtextElement.textContent.trim();
+            
+            // Extract options
+            const options = [];
+            const answerLabels = queElement.querySelectorAll('[data-region="answer-label"]');
+            
+            answerLabels.forEach((labelElement) => {
+                const answerNumber = labelElement.querySelector('.answernumber');
+                const answerText = labelElement.querySelector('.flex-fill');
+                
+                if (answerNumber && answerText) {
+                    const label = answerNumber.textContent.trim().replace('.', '').toUpperCase();
+                    const text = answerText.textContent.trim();
+                    
+                    options.push({
+                        label: label,
+                        text: text
+                    });
+                    
+                    // Check if this option is checked (correct answer)
+                    const radioInput = labelElement.parentElement.querySelector('input[type="radio"]');
+                    if (radioInput && radioInput.checked) {
+                        answers[questionNumber] = label;
+                    }
+                }
+            });
+            
+            if (questionText && options.length > 0) {
+                questions.push({
+                    number: questionNumber,
+                    lo: '',
+                    text: questionText,
+                    options: options
+                });
+            }
+        });
+        
+        return { questions, answers };
+    }
+
+    static parseMoodleText(text) {
+        const questions = [];
+        const answers = {};
+        
+        // Split by "Question" followed by a number to get each question block
+        const questionBlocks = text.split(/(?=Question\s+\d+\s*\n)/i);
+        
+        for (const block of questionBlocks) {
+            if (!block.trim()) continue;
+            
+            const lines = block.split('\n');
+            
+            // Extract question number from first line
+            const firstLine = lines[0].trim();
+            const questionNumMatch = firstLine.match(/^Question\s+(\d+)$/i);
+            if (!questionNumMatch) continue;
+            
+            const questionNumber = parseInt(questionNumMatch[1]);
+            
+            // Find the question text (after "Question text" and before "Question N Select one:")
+            let questionText = '';
+            let questionTextStarted = false;
+            let optionsStarted = false;
+            const options = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                // Skip metadata lines
+                if (line.match(/^(Complete|Mark|Flag question|Status|Started|Completed|Duration|Grade)/i)) {
+                    continue;
+                }
+                
+                // Start collecting question text
+                if (line === 'Question text') {
+                    questionTextStarted = true;
+                    continue;
+                }
+                
+                // Options start with "Question N Select one:"
+                if (line.match(/^Question\s+\d+Select one:/i)) {
+                    optionsStarted = true;
+                    questionTextStarted = false;
+                    continue;
+                }
+                
+                // Collect question text
+                if (questionTextStarted && !optionsStarted && 
+                    !line.match(/^Question\s+\d+/i) &&
+                    !line.match(/^[a-d]\.$/i) && line) {
+                    questionText += (questionText ? ' ' : '') + line;
+                }
+                
+                // Parse options - letter on one line, text on following lines
+                if (optionsStarted) {
+                    const optionMatch = line.match(/^([a-d])\.$/i);
+                    if (optionMatch) {
+                        const optionLabel = optionMatch[1].toUpperCase();
+                        let optionText = '';
+                        
+                        // Collect all text lines for this option until we hit next option or question
+                        let j = i + 1;
+                        while (j < lines.length) {
+                            const nextLine = lines[j].trim();
+                            // Stop if we hit another option letter, next question, or empty line followed by option
+                            if (nextLine.match(/^[a-d]\.$/i) || 
+                                nextLine.match(/^Question\s+\d+$/i)) {
+                                break;
+                            }
+                            if (nextLine) {
+                                optionText += (optionText ? ' ' : '') + nextLine;
+                            }
+                            j++;
+                        }
+                        
+                        if (optionText.trim()) {
+                            options.push({
+                                label: optionLabel,
+                                text: optionText.trim()
+                            });
+                        }
+                        i = j - 1; // Continue from where we stopped
+                    }
+                }
+            }
+            
+            // Add question if we have text and options
+            if (questionText && options.length > 0) {
+                questions.push({
+                    number: questionNumber,
+                    lo: '',
+                    text: questionText.trim(),
+                    options: options
+                });
+            }
+        }
+        
+        // Note: Text format doesn't include answers in the export
         return { questions, answers };
     }
 }
