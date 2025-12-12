@@ -440,74 +440,196 @@ class QuizController {
         this.saveCompletedSession(score);
     }
 
-    saveSession() {
-        if (!this.currentQuiz) {
-            localStorage.removeItem(this.sessionKey);
-            return;
+    getAllSessions() {
+        const saved = localStorage.getItem(this.sessionsKey);
+        if (!saved) return [];
+        try {
+            return JSON.parse(saved);
+        } catch (error) {
+            console.error('Error loading sessions:', error);
+            return [];
         }
+    }
+    
+    saveCurrentSession() {
+        if (!this.currentQuiz) return;
         
-        const session = {
+        const sessions = this.getAllSessions();
+        const sessionData = {
+            id: this.currentSessionId || Date.now(),
             quizContent: this.currentQuiz.content,
             quizTitle: this.currentQuiz.title,
             currentQuestionIndex: this.currentQuestionIndex,
             userAnswers: this.userAnswers,
-            timestamp: new Date().toISOString()
+            totalQuestions: this.currentQuiz.questions.length,
+            answeredCount: Object.keys(this.userAnswers).length,
+            status: 'ongoing',
+            lastUpdated: new Date().toISOString(),
+            createdAt: this.currentSessionId ? sessions.find(s => s.id === this.currentSessionId)?.createdAt : new Date().toISOString()
         };
         
-        localStorage.setItem(this.sessionKey, JSON.stringify(session));
+        this.currentSessionId = sessionData.id;
+        
+        // Update or add session
+        const existingIndex = sessions.findIndex(s => s.id === sessionData.id);
+        if (existingIndex >= 0) {
+            sessions[existingIndex] = sessionData;
+        } else {
+            sessions.unshift(sessionData);
+        }
+        
+        // Keep only last 20 sessions
+        if (sessions.length > 20) {
+            sessions.splice(20);
+        }
+        
+        localStorage.setItem(this.sessionsKey, JSON.stringify(sessions));
+        this.displaySessions();
     }
     
-    loadSession() {
-        const saved = localStorage.getItem(this.sessionKey);
-        if (!saved) return;
+    saveCompletedSession(score) {
+        if (!this.currentQuiz) return;
         
+        const sessions = this.getAllSessions();
+        const sessionData = {
+            id: this.currentSessionId || Date.now(),
+            quizContent: this.currentQuiz.content,
+            quizTitle: this.currentQuiz.title,
+            userAnswers: this.userAnswers,
+            correctAnswers: this.currentQuiz.answers,
+            questions: this.currentQuiz.questions,
+            totalQuestions: this.currentQuiz.questions.length,
+            score: score,
+            percentage: Math.round((score / this.currentQuiz.questions.length) * 100),
+            status: 'completed',
+            completedAt: new Date().toISOString(),
+            createdAt: this.currentSessionId ? sessions.find(s => s.id === this.currentSessionId)?.createdAt : new Date().toISOString()
+        };
+        
+        // Update or add session
+        const existingIndex = sessions.findIndex(s => s.id === sessionData.id);
+        if (existingIndex >= 0) {
+            sessions[existingIndex] = sessionData;
+        } else {
+            sessions.unshift(sessionData);
+        }
+        
+        localStorage.setItem(this.sessionsKey, JSON.stringify(sessions));
+        this.currentSessionId = null;
+        this.displaySessions();
+    }
+    
+    loadSession(sessionId) {
+        const sessions = this.getAllSessions();
+        const session = sessions.find(s => s.id === sessionId);
+        
+        if (!session) return;
+        
+        if (session.status === 'completed') {
+            // Review mode - show results directly
+            this.reviewSession(session);
+            return;
+        }
+        
+        // Restore ongoing quiz
         try {
-            const session = JSON.parse(saved);
-            
-            // Check if session is not too old (24 hours)
-            const sessionAge = Date.now() - new Date(session.timestamp).getTime();
-            if (sessionAge > 24 * 60 * 60 * 1000) {
-                localStorage.removeItem(this.sessionKey);
-                return;
-            }
-            
-            // Show confirmation to user
-            const proceed = confirm(
-                `Resume previous quiz session?\n\n` +
-                `Progress: Question ${session.currentQuestionIndex + 1}\n` +
-                `Answered: ${Object.keys(session.userAnswers).length} questions\n\n` +
-                `Click OK to resume, or Cancel to start fresh.`
-            );
-            
-            if (!proceed) {
-                localStorage.removeItem(this.sessionKey);
-                return;
-            }
-            
-            // Restore quiz state
             this.view.setInputValue(session.quizContent);
             this.view.setQuizName(session.quizTitle || '');
             
-            // Parse and restore quiz
             const { questions, answers } = Quiz.parseFromText(session.quizContent);
             this.currentQuiz = new Quiz(null, session.quizTitle || 'Current Quiz', session.quizContent, questions, answers);
             this.currentQuestionIndex = session.currentQuestionIndex;
             this.userAnswers = session.userAnswers;
+            this.currentSessionId = session.id;
             
-            // Show quiz section
             this.view.showSection(this.view.quizSection);
             this.displayCurrentQuestion();
             
-            this.view.showAlert('✅ Previous session restored!');
-            
+            this.view.showAlert('✅ Session resumed!');
         } catch (error) {
             console.error('Error loading session:', error);
-            localStorage.removeItem(this.sessionKey);
+            this.view.showAlert('Error loading session: ' + error.message);
         }
     }
     
-    clearSession() {
-        localStorage.removeItem(this.sessionKey);
+    reviewSession(session) {
+        // Show results section with completed session data
+        this.view.showSection(this.view.resultsSection);
+        this.view.displayResults(
+            session.score,
+            session.totalQuestions,
+            session.questions,
+            session.userAnswers,
+            session.correctAnswers
+        );
+    }
+    
+    deleteSession(sessionId) {
+        if (!confirm('Delete this quiz session?')) return;
+        
+        const sessions = this.getAllSessions();
+        const filtered = sessions.filter(s => s.id !== sessionId);
+        localStorage.setItem(this.sessionsKey, JSON.stringify(filtered));
+        this.displaySessions();
+    }
+    
+    loadAllSessions() {
+        this.displaySessions();
+    }
+    
+    displaySessions() {
+        const sessionsList = document.getElementById('sessions-list');
+        if (!sessionsList) return; // DOM not ready yet
+        
+        const sessions = this.getAllSessions();
+        
+        if (sessions.length === 0) {
+            sessionsList.innerHTML = '<p class=\"no-quizzes\">No quiz sessions yet</p>';
+            return;
+        }
+        
+        sessionsList.innerHTML = sessions.map(session => {
+            const date = new Date(session.lastUpdated || session.completedAt || session.createdAt);
+            const dateStr = date.toLocaleString();
+            const isCompleted = session.status === 'completed';
+            const statusBadge = isCompleted 
+                ? `<span class=\"session-badge completed\">✅ Completed ${session.percentage}%</span>` 
+                : `<span class=\"session-badge ongoing\">🔄 In Progress (${session.answeredCount}/${session.totalQuestions})</span>`;
+            
+            return `
+                <div class=\"quiz-item session-item\" data-session-id=\"${session.id}\">
+                    <div class=\"quiz-info\">
+                        <div class=\"quiz-title\">${session.quizTitle || 'Untitled Quiz'}</div>
+                        <div class=\"quiz-date\">${dateStr}</div>
+                        ${statusBadge}
+                    </div>
+                    <div class=\"quiz-actions\">
+                        <button class=\"btn btn-small btn-primary ${isCompleted ? 'review' : 'resume'}-session-btn\" 
+                                data-session-id=\"${session.id}\">
+                            ${isCompleted ? '👁️ Review' : '▶️ Resume'}
+                        </button>
+                        <button class=\"btn btn-small btn-danger delete-session-btn\" 
+                                data-session-id=\"${session.id}\">🗑️</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Attach event listeners
+        document.querySelectorAll('.resume-session-btn, .review-session-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = parseInt(e.target.dataset.sessionId);
+                this.loadSession(id);
+            });
+        });
+        
+        document.querySelectorAll('.delete-session-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = parseInt(e.target.dataset.sessionId);
+                this.deleteSession(id);
+            });
+        });
     }
 
     restart() {
