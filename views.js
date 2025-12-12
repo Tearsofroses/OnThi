@@ -213,15 +213,24 @@ class QuizView {
         });
     }
 
-    // Display results
-    displayResults(score, total, questions, userAnswers, correctAnswers) {
+    // Get input value
     getInputValue() {
         return this.quizInput.value.trim();
+    }
+
+    // Get quiz name
+    getQuizName() {
+        return this.quizNameInput.value.trim();
     }
 
     // Set input value
     setInputValue(value) {
         this.quizInput.value = value;
+    }
+
+    // Set quiz name
+    setQuizName(name) {
+        this.quizNameInput.value = name;
     }
 
     // Clear input
