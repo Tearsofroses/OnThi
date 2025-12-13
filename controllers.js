@@ -766,8 +766,9 @@ class QuizController {
             // Start timers
             this.quizStartTime = Date.now() - (this.elapsedTime * 1000);
             this.startTimer();
+            this.view.updateTimerDisplay(this.elapsedTime); // Update display immediately
             
-            if (this.quizTimeLimit !== null && this.remainingTime !== null) {
+            if (this.quizTimeLimit !== null && this.quizTimeLimit > 0 && this.remainingTime !== null && this.remainingTime >= 0) {
                 this.view.showCountdown(true);
                 this.view.updateCountdownDisplay(this.remainingTime);
                 this.startCountdown();
