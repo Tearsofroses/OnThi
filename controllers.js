@@ -53,6 +53,12 @@ class QuizController {
             copyFormatBtn.addEventListener('click', () => this.copySampleFormat());
         }
         
+        // Copy AI prompt button
+        const copyPromptBtn = document.getElementById('copy-prompt-btn');
+        if (copyPromptBtn) {
+            copyPromptBtn.addEventListener('click', () => this.copyAIPrompt());
+        }
+        
         // Quiz section
         this.view.prevBtn.addEventListener('click', () => this.previousQuestion());
         this.view.nextBtn.addEventListener('click', () => this.nextQuestion());
@@ -931,6 +937,71 @@ D. A hierarchy of objects.
         navigator.clipboard.writeText(sampleText).then(() => {
             this.view.showAlert('✅ Sample format copied to clipboard!');
             const btn = document.getElementById('copy-format-btn');
+            if (btn) {
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copied!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            }
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            this.view.showAlert('❌ Failed to copy. Please select and copy manually.');
+        });
+    }
+
+    copyAIPrompt() {
+        const aiPrompt = `Generate multiple-choice quiz questions in the following format:
+
+FORMAT REQUIREMENTS:
+- Start each question with the question number followed by a period
+- Include learning objective tags (optional) in parentheses: (LO X.X)
+- Each question must have 4 options labeled A, B, C, D
+- Provide the answer key at the end in format: 1A2B3C4D5A...
+
+SUPPORTED FORMATTING:
+- **Bold text** using Markdown: **text** or __text__
+- *Italic text* using Markdown: *text* or _text_
+- \`Inline code\` using Markdown: \`code\`
+- LaTeX math notation: $\\pi$, $\\sigma$, $R(X, Y, Z)$, etc.
+- Links: [link text](url)
+
+EXAMPLE OUTPUT:
+
+1. (LO 1.1) Which of the following best describes **database normalization**?
+A. A process to **minimize** data redundancy
+B. A technique for backing up databases
+C. A method for encrypting sensitive data
+D. A way to *increase* query performance
+
+2. (LO 1.2) What does the SQL command \`SELECT * FROM users\` do?
+A. Deletes all users
+B. Updates user information
+C. **Retrieves all records** from the users table
+D. Creates a new table
+
+3. (LO 2.1) In relational algebra, what does the symbol $\\pi$ represent?
+A. Product operation
+B. **Projection** operation
+C. Selection operation  
+D. Join operation
+
+ANSWER KEY:
+1A2C3B
+
+IMPORTANT RULES:
+1. Each question MUST be numbered sequentially
+2. Each question MUST have exactly 4 options (A, B, C, D)
+3. Options must start with the letter followed by a period
+4. Answer key must be at the END in format: 1X2Y3Z... (where X,Y,Z are the option letters)
+5. Use plain ASCII text with Markdown and LaTeX where needed
+6. Leave blank lines between questions for readability
+
+Now generate [NUMBER] quiz questions about [TOPIC]:`;
+        
+        navigator.clipboard.writeText(aiPrompt).then(() => {
+            this.view.showAlert('✅ AI prompt copied! Paste it to ChatGPT, Claude, or any LLM to generate quizzes.');
+            const btn = document.getElementById('copy-prompt-btn');
             if (btn) {
                 const originalText = btn.textContent;
                 btn.textContent = '✅ Copied!';
