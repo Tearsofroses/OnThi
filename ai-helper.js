@@ -94,9 +94,69 @@ class AIHelper {
             // Race between timeout and API call
             const response = await Promise.race([apiCallPromise, timeoutPromise]);
             
-            return response.ok;
+            // Check if response is OK
+            if (!response.ok) {
+                return false;
+            }
+            
+            // Parse and validate response body
+            const isValid = await this.validateModelResponse(response, provider);
+            return isValid;
+            
         } catch (error) {
             console.error(`Test failed for model ${modelId}:`, error);
+            return false;
+        }
+    }
+
+    async validateModelResponse(response, provider) {
+        try {
+            const data = await response.json();
+            
+            // Check for common error patterns
+            const errorKeywords = [
+                'quota', 'exceeded', 'rate limit', 'insufficient', 'denied',
+                'forbidden', 'unauthorized', 'invalid', 'error', 'failed',
+                'unavailable', 'disabled', 'not found', 'permission'
+            ];
+            
+            // Convert response to lowercase string for checking
+            const responseStr = JSON.stringify(data).toLowerCase();
+            
+            // Check if response contains error keywords
+            const hasError = errorKeywords.some(keyword => responseStr.includes(keyword));
+            if (hasError) {
+                console.log(`Model test failed - Error detected in response:`, data);
+                return false;
+            }
+            
+            // Validate provider-specific response structure
+            switch (provider) {
+                case 'openai':
+                case 'groq':
+                    // Check for valid OpenAI-style response
+                    if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                        return true;
+                    }
+                    break;
+                    
+                case 'gemini':
+                    // Check for valid Gemini response
+                    if (data.candidates && data.candidates.length > 0 && data.candidates[0].content) {
+                        return true;
+                    }
+                    break;
+                    
+                default:
+                    return false;
+            }
+            
+            // If we got here without returning true, the response structure is invalid
+            console.log(`Model test failed - Invalid response structure:`, data);
+            return false;
+            
+        } catch (error) {
+            console.error('Error parsing model test response:', error);
             return false;
         }
     }
