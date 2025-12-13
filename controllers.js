@@ -49,6 +49,14 @@ class QuizController {
         this.view.nextBtn.addEventListener('click', () => this.nextQuestion());
         this.view.submitBtn.addEventListener('click', () => this.submitQuiz());
         
+        // Quiz navigation buttons
+        if (this.view.returnToMainBtn) {
+            this.view.returnToMainBtn.addEventListener('click', () => this.returnToMain());
+        }
+        if (this.view.showChatBtn) {
+            this.view.showChatBtn.addEventListener('click', () => this.view.toggleChatSidebar());
+        }
+        
         // Options selection (use event delegation)
         this.view.optionsContainer.addEventListener('click', (e) => {
             const option = e.target.closest('.option');
@@ -799,6 +807,14 @@ class QuizController {
                 this.deleteSession(id);
             });
         });
+    }
+
+    returnToMain() {
+        const confirmReturn = this.view.showConfirm('Are you sure you want to return to the main page? Your progress will be saved.');
+        if (confirmReturn) {
+            this.saveCurrentSession();
+            this.restart();
+        }
     }
 
     restart() {

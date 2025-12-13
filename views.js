@@ -48,6 +48,8 @@ class QuizView {
         this.totalQSpan = document.getElementById('total-q');
         this.progressBar = document.getElementById('progress');
         this.timerDisplay = document.getElementById('timer-display');
+        this.returnToMainBtn = document.getElementById('return-to-main-btn');
+        this.showChatBtn = document.getElementById('show-chat-btn');
         this.prevBtn = document.getElementById('prev-btn');
         this.nextBtn = document.getElementById('next-btn');
         this.submitBtn = document.getElementById('submit-btn');
@@ -454,7 +456,23 @@ class QuizView {
     }
 
     toggleChatSidebar() {
-        this.aiChatSidebar.classList.toggle('collapsed');
+        const sidebar = this.aiChatSidebar;
+        const mainContent = document.querySelector('.quiz-main-content');
+        const isHidden = sidebar.classList.contains('hidden');
+        
+        if (isHidden) {
+            // Show chat
+            sidebar.classList.remove('hidden');
+            if (mainContent) mainContent.classList.remove('chat-hidden');
+            if (this.showChatBtn) this.showChatBtn.classList.add('hidden');
+            if (this.chatToggleBtn) this.chatToggleBtn.textContent = 'Hide';
+        } else {
+            // Hide chat
+            sidebar.classList.add('hidden');
+            if (mainContent) mainContent.classList.add('chat-hidden');
+            if (this.showChatBtn) this.showChatBtn.classList.remove('hidden');
+            if (this.chatToggleBtn) this.chatToggleBtn.textContent = 'Show';
+        }
     }
 
     showAISettings() {
