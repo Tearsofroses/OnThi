@@ -677,6 +677,8 @@ class QuizController {
             answeredCount: Object.keys(this.userAnswers).length,
             status: 'ongoing',
             elapsedTime: this.elapsedTime,
+            remainingTime: this.remainingTime,
+            quizTimeLimit: this.quizTimeLimit,
             lastUpdated: new Date().toISOString(),
             createdAt: this.currentSessionId ? sessions.find(s => s.id === this.currentSessionId)?.createdAt : new Date().toISOString()
         };
@@ -756,6 +758,23 @@ class QuizController {
             this.userAnswers = session.userAnswers;
             this.currentSessionId = session.id;
             
+            // Restore timer states
+            this.elapsedTime = session.elapsedTime || 0;
+            this.quizTimeLimit = session.quizTimeLimit || null;
+            this.remainingTime = session.remainingTime || null;
+            
+            // Start timers
+            this.quizStartTime = Date.now() - (this.elapsedTime * 1000);
+            this.startTimer();
+            
+            if (this.quizTimeLimit !== null && this.remainingTime !== null) {
+                this.view.showCountdown(true);
+                this.view.updateCountdownDisplay(this.remainingTime);
+                this.startCountdown();
+            } else {
+                this.view.showCountdown(false);
+            }
+            
             this.view.showSection(this.view.quizSection);
             this.displayCurrentQuestion();
             
@@ -810,9 +829,16 @@ class QuizController {
             // Format elapsed time
             const timeStr = session.elapsedTime ? this.formatTime(session.elapsedTime) : '0:00';
             
+            // Format remaining time for countdown
+            let timeInfo = `⏱️ ${timeStr}`;
+            if (!isCompleted && session.remainingTime !== null && session.remainingTime !== undefined) {
+                const remainingStr = this.formatTime(session.remainingTime);
+                timeInfo = `⏱️ ${timeStr} • ⏰ ${remainingStr} left`;
+            }
+            
             const statusBadge = isCompleted 
-                ? `<span class="session-badge completed">✅ Completed ${session.percentage}% • ⏱️ ${timeStr}</span>` 
-                : `<span class="session-badge ongoing">🔄 In Progress (${session.answeredCount}/${session.totalQuestions}) • ⏱️ ${timeStr}</span>`;
+                ? `<span class="session-badge completed">✅ Completed ${session.percentage}% • ${timeInfo}</span>` 
+                : `<span class="session-badge ongoing">🔄 In Progress (${session.answeredCount}/${session.totalQuestions}) • ${timeInfo}</span>`;
             
             return `
                 <div class="quiz-item session-item" data-session-id="${session.id}">
@@ -853,6 +879,10 @@ class QuizController {
     returnToMain() {
         const confirmReturn = this.view.showConfirm('Are you sure you want to return to the main page? Your progress will be saved.');
         if (confirmReturn) {
+            // Stop timers before saving
+            this.stopTimer();
+            this.stopCountdown();
+            // Save current state including remaining time
             this.saveCurrentSession();
             this.restart();
         }
