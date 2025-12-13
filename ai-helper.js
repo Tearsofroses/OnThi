@@ -79,62 +79,78 @@ class AIHelper {
         this.chatHistory = [];
     }
 
-    async testModel(provider, apiKey, modelId) {
+    async testModel(provider, apiKey, modelId, timeoutMs = 10000) {
         try {
             const testPrompt = "Hi";
-            let response;
-
-            switch (provider) {
-                case 'openai':
-                    response = await fetch('https://api.openai.com/v1/chat/completions', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${apiKey}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            model: modelId,
-                            messages: [{ role: 'user', content: testPrompt }],
-                            max_tokens: 10
-                        })
-                    });
-                    break;
-
-                case 'gemini':
-                    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: testPrompt }] }],
-                            generationConfig: { maxOutputTokens: 10 }
-                        })
-                    });
-                    break;
-
-                case 'groq':
-                    response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${apiKey}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            model: modelId,
-                            messages: [{ role: 'user', content: testPrompt }],
-                            max_tokens: 10
-                        })
-                    });
-                    break;
-
-                default:
-                    return false;
-            }
-
+            
+            // Create a timeout promise
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Test timeout')), timeoutMs)
+            );
+            
+            // Create the API call promise
+            const apiCallPromise = this.makeTestApiCall(provider, apiKey, modelId, testPrompt);
+            
+            // Race between timeout and API call
+            const response = await Promise.race([apiCallPromise, timeoutPromise]);
+            
             return response.ok;
         } catch (error) {
             console.error(`Test failed for model ${modelId}:`, error);
             return false;
         }
+    }
+
+    async makeTestApiCall(provider, apiKey, modelId, testPrompt) {
+        let response;
+        
+        switch (provider) {
+            case 'openai':
+                response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: modelId,
+                        messages: [{ role: 'user', content: testPrompt }],
+                        max_tokens: 10
+                    })
+                });
+                break;
+
+            case 'gemini':
+                response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: testPrompt }] }],
+                        generationConfig: { maxOutputTokens: 10 }
+                    })
+                });
+                break;
+
+            case 'groq':
+                response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: modelId,
+                        messages: [{ role: 'user', content: testPrompt }],
+                        max_tokens: 10
+                    })
+                });
+                break;
+
+            default:
+                throw new Error('Invalid provider');
+        }
+        
+        return response;
     }
 
     async fetchModelsFromAPI(provider, apiKey, testModels = false) {

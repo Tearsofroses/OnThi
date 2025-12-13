@@ -12,6 +12,9 @@ class QuizController {
         this.aiHelper = new AIHelper();
         this.sessionsKey = 'quizSessions';
         this.currentSessionId = null;
+        this.quizStartTime = null;
+        this.elapsedTime = 0; // in seconds
+        this.timerInterval = null;
         
         this.initEventListeners();
         this.loadAllSessions(); // Load and display all sessions
@@ -467,6 +470,11 @@ class QuizController {
             this.userAnswers = {};
             this.currentSessionId = null; // New session
             
+            // Start timer
+            this.quizStartTime = Date.now();
+            this.elapsedTime = 0;
+            this.startTimer();
+            
             // Clear AI chat history for new quiz
             this.aiHelper.clearHistory();
             this.view.clearChat();
@@ -562,8 +570,37 @@ class QuizController {
             this.currentQuiz.answers
         );
         
+        // Stop timer
+        this.stopTimer();
+        
         // Save completed session
         this.saveCompletedSession(score);
+    }
+
+    startTimer() {
+        this.stopTimer(); // Clear any existing timer
+        this.timerInterval = setInterval(() => {
+            this.elapsedTime++;
+            this.view.updateTimerDisplay(this.elapsedTime);
+        }, 1000);
+    }
+
+    stopTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    }
+
+    formatTime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        
+        if (hours > 0) {
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        return `${minutes}:${secs.toString().padStart(2, '0')}`;
     }
 
     getAllSessions() {
@@ -590,6 +627,7 @@ class QuizController {
             totalQuestions: this.currentQuiz.questions.length,
             answeredCount: Object.keys(this.userAnswers).length,
             status: 'ongoing',
+            elapsedTime: this.elapsedTime,
             lastUpdated: new Date().toISOString(),
             createdAt: this.currentSessionId ? sessions.find(s => s.id === this.currentSessionId)?.createdAt : new Date().toISOString()
         };
@@ -628,6 +666,7 @@ class QuizController {
             score: score,
             percentage: Math.round((score / this.currentQuiz.questions.length) * 100),
             status: 'completed',
+            elapsedTime: this.elapsedTime,
             completedAt: new Date().toISOString(),
             createdAt: this.currentSessionId ? sessions.find(s => s.id === this.currentSessionId)?.createdAt : new Date().toISOString()
         };
@@ -718,24 +757,28 @@ class QuizController {
             const date = new Date(session.lastUpdated || session.completedAt || session.createdAt);
             const dateStr = date.toLocaleString();
             const isCompleted = session.status === 'completed';
+            
+            // Format elapsed time
+            const timeStr = session.elapsedTime ? this.formatTime(session.elapsedTime) : '0:00';
+            
             const statusBadge = isCompleted 
-                ? `<span class=\"session-badge completed\">✅ Completed ${session.percentage}%</span>` 
-                : `<span class=\"session-badge ongoing\">🔄 In Progress (${session.answeredCount}/${session.totalQuestions})</span>`;
+                ? `<span class="session-badge completed">✅ Completed ${session.percentage}% • ⏱️ ${timeStr}</span>` 
+                : `<span class="session-badge ongoing">🔄 In Progress (${session.answeredCount}/${session.totalQuestions}) • ⏱️ ${timeStr}</span>`;
             
             return `
-                <div class=\"quiz-item session-item\" data-session-id=\"${session.id}\">
-                    <div class=\"quiz-info\">
-                        <div class=\"quiz-title\">${session.quizTitle || 'Untitled Quiz'}</div>
-                        <div class=\"quiz-date\">${dateStr}</div>
+                <div class="quiz-item session-item" data-session-id="${session.id}">
+                    <div class="quiz-info">
+                        <div class="quiz-title">${session.quizTitle || 'Untitled Quiz'}</div>
+                        <div class="quiz-date">${dateStr}</div>
                         ${statusBadge}
                     </div>
-                    <div class=\"quiz-actions\">
-                        <button class=\"btn btn-small btn-primary ${isCompleted ? 'review' : 'resume'}-session-btn\" 
-                                data-session-id=\"${session.id}\">
+                    <div class="quiz-actions">
+                        <button class="btn btn-small btn-primary ${isCompleted ? 'review' : 'resume'}-session-btn" 
+                                data-session-id="${session.id}">
                             ${isCompleted ? '👁️ Review' : '▶️ Resume'}
                         </button>
-                        <button class=\"btn btn-small btn-danger delete-session-btn\" 
-                                data-session-id=\"${session.id}\">🗑️</button>
+                        <button class="btn btn-small btn-danger delete-session-btn" 
+                                data-session-id="${session.id}">🗑️</button>
                     </div>
                 </div>
             `;
@@ -759,11 +802,14 @@ class QuizController {
     }
 
     restart() {
+        this.stopTimer();
         this.currentQuiz = null;
         this.currentQuestionIndex = 0;
         this.userAnswers = {};
         this.currentSessionId = null;
         this.selectedReviewQuestion = null;
+        this.quizStartTime = null;
+        this.elapsedTime = 0;
         this.view.clearInput();
         this.view.showSection(this.view.inputSection);
     }

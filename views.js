@@ -47,6 +47,7 @@ class QuizView {
         this.currentQSpan = document.getElementById('current-q');
         this.totalQSpan = document.getElementById('total-q');
         this.progressBar = document.getElementById('progress');
+        this.timerDisplay = document.getElementById('timer-display');
         this.prevBtn = document.getElementById('prev-btn');
         this.nextBtn = document.getElementById('next-btn');
         this.submitBtn = document.getElementById('submit-btn');
@@ -227,6 +228,21 @@ class QuizView {
         } else {
             this.nextBtn.classList.remove('hidden');
             this.submitBtn.classList.add('hidden');
+        }
+    }
+
+    // Update timer display
+    updateTimerDisplay(seconds) {
+        if (!this.timerDisplay) return;
+        
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        
+        if (hours > 0) {
+            this.timerDisplay.textContent = `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        } else {
+            this.timerDisplay.textContent = `${minutes}:${secs.toString().padStart(2, '0')}`;
         }
     }
 
