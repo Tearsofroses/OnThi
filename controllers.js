@@ -47,6 +47,12 @@ class QuizController {
         this.view.refreshSharedBtn.addEventListener('click', () => this.loadSharedQuizzes());
         this.view.courseFilter.addEventListener('change', (e) => this.filterSharedQuizzes(e.target.value));
         
+        // Copy format button
+        const copyFormatBtn = document.getElementById('copy-format-btn');
+        if (copyFormatBtn) {
+            copyFormatBtn.addEventListener('click', () => this.copySampleFormat());
+        }
+        
         // Quiz section
         this.view.prevBtn.addEventListener('click', () => this.previousQuestion());
         this.view.nextBtn.addEventListener('click', () => this.nextQuestion());
@@ -904,6 +910,38 @@ class QuizController {
         this.view.showCountdown(false);
         this.view.clearInput();
         this.view.showSection(this.view.inputSection);
+    }
+
+    copySampleFormat() {
+        const sampleText = `1. (LO 1.1) Which of the following best describes the "Three-Schema Architecture"?
+
+A. It separates the database into three physical files for redundancy.
+B. It separates the user applications from the physical database to achieve data independence.
+C. It divides users into three levels: Administrator, Designer, and End User.
+D. It is a backup strategy involving three copies of data.
+
+2. (LO 1.2) In the Relational Data Model, what is a "Relation" conceptually equivalent to?
+A. A row in a file.
+B. A pointer connecting two records.
+C. A mathematical table of values using $R(X, Y, Z)$ notation.
+D. A hierarchy of objects.
+
+1B2C3A4B5C...`;
+        
+        navigator.clipboard.writeText(sampleText).then(() => {
+            this.view.showAlert('✅ Sample format copied to clipboard!');
+            const btn = document.getElementById('copy-format-btn');
+            if (btn) {
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copied!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            }
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            this.view.showAlert('❌ Failed to copy. Please select and copy manually.');
+        });
     }
 
     // AI Chat Methods

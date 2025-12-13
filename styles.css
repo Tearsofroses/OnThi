@@ -255,6 +255,33 @@ header h1 {
     font-size: 14px;
 }
 
+.format-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.btn-copy-format {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.3s ease;
+}
+
+.btn-copy-format:hover {
+    background: #5568d3;
+    transform: translateY(-2px);
+}
+
+.btn-copy-format:active {
+    transform: translateY(0);
+}
+
 .format-example strong {
     display: block;
     color: #333;
