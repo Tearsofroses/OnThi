@@ -15,6 +15,9 @@ class QuizController {
         this.quizStartTime = null;
         this.elapsedTime = 0; // in seconds
         this.timerInterval = null;
+        this.quizTimeLimit = null; // in seconds
+        this.countdownInterval = null;
+        this.remainingTime = null; // in seconds
         
         this.initEventListeners();
         this.loadAllSessions(); // Load and display all sessions
@@ -478,6 +481,19 @@ class QuizController {
             this.userAnswers = {};
             this.currentSessionId = null; // New session
             
+            // Get timer limit
+            const timerLimit = this.view.getTimerLimit();
+            if (timerLimit) {
+                this.quizTimeLimit = timerLimit * 60; // Convert minutes to seconds
+                this.remainingTime = this.quizTimeLimit;
+                this.view.showCountdown(true);
+                this.startCountdown();
+            } else {
+                this.quizTimeLimit = null;
+                this.remainingTime = null;
+                this.view.showCountdown(false);
+            }
+            
             // Start timer
             this.quizStartTime = Date.now();
             this.elapsedTime = 0;
@@ -580,6 +596,7 @@ class QuizController {
         
         // Stop timer
         this.stopTimer();
+        this.stopCountdown();
         
         // Save completed session
         this.saveCompletedSession(score);
@@ -597,6 +614,30 @@ class QuizController {
         if (this.timerInterval) {
             clearInterval(this.timerInterval);
             this.timerInterval = null;
+        }
+    }
+
+    startCountdown() {
+        this.stopCountdown(); // Clear any existing countdown
+        this.countdownInterval = setInterval(() => {
+            if (this.remainingTime !== null && this.remainingTime > 0) {
+                this.remainingTime--;
+                this.view.updateCountdownDisplay(this.remainingTime);
+                
+                // Auto-submit when time runs out
+                if (this.remainingTime === 0) {
+                    this.stopCountdown();
+                    this.view.showAlert('⏰ Time\'s up! Your quiz will be submitted automatically.');
+                    setTimeout(() => this.submitQuiz(), 1000);
+                }
+            }
+        }, 1000);
+    }
+
+    stopCountdown() {
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
         }
     }
 
@@ -819,6 +860,7 @@ class QuizController {
 
     restart() {
         this.stopTimer();
+        this.stopCountdown();
         this.currentQuiz = null;
         this.currentQuestionIndex = 0;
         this.userAnswers = {};
@@ -826,6 +868,9 @@ class QuizController {
         this.selectedReviewQuestion = null;
         this.quizStartTime = null;
         this.elapsedTime = 0;
+        this.quizTimeLimit = null;
+        this.remainingTime = null;
+        this.view.showCountdown(false);
         this.view.clearInput();
         this.view.showSection(this.view.inputSection);
     }

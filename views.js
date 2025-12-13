@@ -12,6 +12,7 @@ class QuizView {
         // Input elements
         this.quizNameInput = document.getElementById('quiz-name-input');
         this.quizCourseInput = document.getElementById('quiz-course-input');
+        this.quizTimerInput = document.getElementById('quiz-timer-input');
         this.courseSuggestions = document.getElementById('course-suggestions');
         this.quizInput = document.getElementById('quiz-input');
         this.startQuizBtn = document.getElementById('start-quiz-btn');
@@ -48,6 +49,8 @@ class QuizView {
         this.totalQSpan = document.getElementById('total-q');
         this.progressBar = document.getElementById('progress');
         this.timerDisplay = document.getElementById('timer-display');
+        this.countdownDisplay = document.getElementById('countdown-display');
+        this.countdownTimer = document.getElementById('countdown-timer');
         this.returnToMainBtn = document.getElementById('return-to-main-btn');
         this.showChatBtn = document.getElementById('show-chat-btn');
         this.prevBtn = document.getElementById('prev-btn');
@@ -248,6 +251,36 @@ class QuizView {
         }
     }
 
+    // Update countdown timer display
+    updateCountdownDisplay(remainingSeconds) {
+        if (!this.countdownTimer) return;
+        
+        const minutes = Math.floor(remainingSeconds / 60);
+        const secs = remainingSeconds % 60;
+        
+        this.countdownTimer.textContent = `${minutes}:${secs.toString().padStart(2, '0')}`;
+        
+        // Change color if less than 5 minutes remaining
+        if (remainingSeconds < 300) {
+            this.countdownDisplay.style.color = '#dc3545';
+            this.countdownDisplay.style.fontWeight = '700';
+        } else {
+            this.countdownDisplay.style.color = '#667eea';
+            this.countdownDisplay.style.fontWeight = '600';
+        }
+    }
+
+    // Show/hide countdown display
+    showCountdown(show) {
+        if (this.countdownDisplay) {
+            if (show) {
+                this.countdownDisplay.classList.remove('hidden');
+            } else {
+                this.countdownDisplay.classList.add('hidden');
+            }
+        }
+    }
+
     // Display results
     displayResults(score, total, questions, userAnswers, correctAnswers) {
         const percentage = Math.round((score / total) * 100);
@@ -357,6 +390,12 @@ class QuizView {
     // Get course
     getCourse() {
         return this.quizCourseInput.value.trim();
+    }
+
+    // Get timer limit in minutes
+    getTimerLimit() {
+        const value = this.quizTimerInput.value.trim();
+        return value ? parseInt(value) : null;
     }
 
     // Set input value

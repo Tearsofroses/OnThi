@@ -317,6 +317,32 @@ kbd {
     width: 100%;
 }
 
+.timer-input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.timer-input-group input {
+    flex: 0 0 150px;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 15px;
+    transition: border-color 0.3s ease;
+}
+
+.timer-input-group input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.timer-hint {
+    color: #666;
+    font-size: 13px;
+    font-style: italic;
+}
+
 #quiz-name-input,
 #quiz-course-input {
     width: 100%;
@@ -405,12 +431,24 @@ kbd {
     justify-content: space-between;
     align-items: center;
     margin-top: 10px;
+    gap: 15px;
 }
 
 .timer-display {
     color: #667eea;
     font-weight: 600;
     font-size: 14px;
+}
+
+.countdown-display {
+    color: #667eea;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 4px 12px;
+    background: #f0f2ff;
+    border-radius: 6px;
+    border: 2px solid #667eea;
+    transition: all 0.3s ease;
 }
 
 .btn-return {

@@ -91,6 +91,13 @@ D. A hierarchy of objects.</pre>
                     <datalist id="course-suggestions"></datalist>
                 </div>
             </div>
+            <div class="quiz-name-section">
+                <label for="quiz-timer-input">Time Limit (optional)</label>
+                <div class="timer-input-group">
+                    <input type="number" id="quiz-timer-input" placeholder="Minutes" min="1" max="999">
+                    <span class="timer-hint">⏱️ Leave empty for no time limit</span>
+                </div>
+            </div>
             <textarea id="quiz-input" placeholder="Paste your questions here..."></textarea>
             
             <div class="input-actions">
@@ -111,6 +118,7 @@ D. A hierarchy of objects.</pre>
                     <div class="quiz-header-info">
                         <p class="question-counter">Question <span id="current-q">1</span> of <span id="total-q">0</span></p>
                         <p class="timer-display">⏱️ <span id="timer-display">0:00</span></p>
+                        <p class="countdown-display hidden" id="countdown-display">⏰ Time Left: <span id="countdown-timer">--:--</span></p>
                     </div>
                 </div>
             
