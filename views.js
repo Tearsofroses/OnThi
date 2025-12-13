@@ -65,13 +65,30 @@ class QuizView {
         this.restartBtn = document.getElementById('restart-btn');
     }
 
-    // Render math notation using KaTeX
+    // Render markdown and math notation
     renderMath(text) {
         if (!text) return text;
         
-        const temp = document.createElement('div');
-        temp.innerHTML = text;
+        // First, process markdown if marked library is available
+        let processedText = text;
+        if (window.marked) {
+            try {
+                // Configure marked to not add paragraph tags for inline content
+                marked.setOptions({
+                    breaks: true,
+                    gfm: true
+                });
+                // Parse markdown
+                processedText = marked.parseInline(text);
+            } catch (e) {
+                console.error('Markdown rendering error:', e);
+            }
+        }
         
+        const temp = document.createElement('div');
+        temp.innerHTML = processedText;
+        
+        // Then, render math notation using KaTeX
         try {
             if (window.katex && window.renderMathInElement) {
                 renderMathInElement(temp, {
@@ -89,7 +106,7 @@ class QuizView {
             console.error('KaTeX rendering error:', e);
         }
         
-        return text;
+        return processedText;
     }
 
     // Show specific section
