@@ -79,7 +79,65 @@ class AIHelper {
         this.chatHistory = [];
     }
 
-    async fetchModelsFromAPI(provider, apiKey) {
+    async testModel(provider, apiKey, modelId) {
+        try {
+            const testPrompt = "Hi";
+            let response;
+
+            switch (provider) {
+                case 'openai':
+                    response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: modelId,
+                            messages: [{ role: 'user', content: testPrompt }],
+                            max_tokens: 10
+                        })
+                    });
+                    break;
+
+                case 'gemini':
+                    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: testPrompt }] }],
+                            generationConfig: { maxOutputTokens: 10 }
+                        })
+                    });
+                    break;
+
+                case 'groq':
+                    response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: modelId,
+                            messages: [{ role: 'user', content: testPrompt }],
+                            max_tokens: 10
+                        })
+                    });
+                    break;
+
+                default:
+                    return false;
+            }
+
+            return response.ok;
+        } catch (error) {
+            console.error(`Test failed for model ${modelId}:`, error);
+            return false;
+        }
+    }
+
+    async fetchModelsFromAPI(provider, apiKey, testModels = false) {
         try {
             let response;
             let models = [];
@@ -127,6 +185,18 @@ class AIHelper {
 
                 default:
                     throw new Error('Invalid provider');
+            }
+
+            // Test models if requested
+            if (testModels && models.length > 0) {
+                const testedModels = [];
+                for (const model of models) {
+                    const isAccessible = await this.testModel(provider, apiKey, model.value);
+                    if (isAccessible) {
+                        testedModels.push(model);
+                    }
+                }
+                return testedModels;
             }
 
             return models;

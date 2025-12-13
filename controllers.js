@@ -897,34 +897,61 @@ class QuizController {
 
         try {
             // Show loading
-            if (loadingEl) loadingEl.style.display = 'block';
+            if (loadingEl) {
+                loadingEl.style.display = 'block';
+                loadingEl.textContent = '⏳ Fetching models...';
+            }
             if (hintEl) hintEl.style.display = 'none';
             if (fetchBtn) fetchBtn.disabled = true;
-            modelSelect.innerHTML = '<option value=\"\">Loading...</option>';
+            modelSelect.innerHTML = '<option value="">Loading...</option>';
 
             // Fetch models from API
-            const models = await this.aiHelper.fetchModelsFromAPI(provider, apiKey);
+            const allModels = await this.aiHelper.fetchModelsFromAPI(provider, apiKey, false);
 
-            if (models.length === 0) {
+            if (allModels.length === 0) {
                 throw new Error('No models found for this API key');
             }
 
-            // Populate dropdown
-            modelSelect.innerHTML = '<option value=\"\">-- Select a model --</option>' +
-                models.map(m => `<option value=\"${m.value}\">${m.label}</option>`).join('');
+            // Test each model
+            if (loadingEl) {
+                loadingEl.textContent = `🔍 Testing ${allModels.length} models for accessibility...`;
+            }
+
+            const workingModels = [];
+            for (let i = 0; i < allModels.length; i++) {
+                const model = allModels[i];
+                if (loadingEl) {
+                    loadingEl.textContent = `🔍 Testing ${i + 1}/${allModels.length}: ${model.label}`;
+                }
+                
+                const isAccessible = await this.aiHelper.testModel(provider, apiKey, model.value);
+                if (isAccessible) {
+                    workingModels.push(model);
+                }
+            }
+
+            if (workingModels.length === 0) {
+                throw new Error('None of the models are accessible with this API key. You may need to upgrade your account or check your permissions.');
+            }
+
+            // Populate dropdown with working models only
+            modelSelect.innerHTML = '<option value="">-- Select a model --</option>' +
+                workingModels.map(m => `<option value="${m.value}">${m.label}</option>`).join('');
             modelSelect.disabled = false;
 
             // Update hint
             if (hintEl) {
-                hintEl.textContent = `✅ Found ${models.length} available model(s)`;
+                const testedCount = allModels.length;
+                const accessibleCount = workingModels.length;
+                hintEl.textContent = `✅ Found ${accessibleCount} accessible model(s) out of ${testedCount} tested`;
                 hintEl.style.color = '#48bb78';
                 hintEl.style.display = 'block';
             }
 
         } catch (error) {
             console.error('Error fetching models:', error);
-            this.view.showAlert('Failed to fetch models: ' + error.message + '\\n\\nPlease check your API key and try again.');
-            modelSelect.innerHTML = '<option value=\"\">-- Fetch failed, try again --</option>';
+            this.view.showAlert('Failed to fetch models: ' + error.message + '\n\nPlease check your API key and try again.');
+            modelSelect.innerHTML = '<option value="">-- Fetch failed, try again --</option>';
             if (hintEl) {
                 hintEl.textContent = '❌ Failed to fetch models. Check your API key.';
                 hintEl.style.color = '#e53e3e';
