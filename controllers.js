@@ -951,20 +951,28 @@ D. A hierarchy of objects.
     }
 
     copyAIPrompt() {
-        const aiPrompt = `Generate multiple-choice quiz questions in the following format:
+        const aiPrompt = `You are a quiz generator assistant. I need you to create multiple-choice questions for an interactive online quiz platform.
+
+ABOUT THE PLATFORM:
+This quiz system supports rich text formatting including Markdown and LaTeX math notation. Questions will be parsed automatically and displayed in an interactive interface where students can practice and test their knowledge.
+
+YOUR TASK:
+Generate well-crafted multiple-choice questions (MCQs) with exactly 4 options each. Questions should be clear, educational, and have one definitive correct answer.
 
 FORMAT REQUIREMENTS:
 - Start each question with the question number followed by a period
-- Include learning objective tags (optional) in parentheses: (LO X.X)
-- Each question must have 4 options labeled A, B, C, D
-- Provide the answer key at the end in format: 1A2B3C4D5A...
+- Optionally include learning objective tags in parentheses: (LO X.X)
+- Each question MUST have exactly 4 options labeled A, B, C, D
+- Each option starts with the letter followed by a period and a space
+- Provide the complete answer key at the END in compact format: 1A2B3C4D5A...
+- Leave blank lines between questions for readability
 
 SUPPORTED FORMATTING:
-- **Bold text** using Markdown: **text** or __text__
-- *Italic text* using Markdown: *text* or _text_
-- \`Inline code\` using Markdown: \`code\`
-- LaTeX math notation: $\\pi$, $\\sigma$, $R(X, Y, Z)$, etc.
-- Links: [link text](url)
+- **Bold text**: Use **text** or __text__ for emphasis
+- *Italic text*: Use *text* or _text_ for subtle emphasis
+- \`Inline code\`: Use \`code\` for programming syntax, commands, or technical terms
+- LaTeX math: Use $\\pi$, $\\sigma$, $\\sum$, $\\int$, $R(X, Y, Z)$ for mathematical expressions
+- [Links](url): Use [text](url) for hyperlinks (if needed)
 
 EXAMPLE OUTPUT:
 
@@ -986,21 +994,35 @@ B. **Projection** operation
 C. Selection operation  
 D. Join operation
 
+4. (LO 2.2) What is the time complexity of binary search in the *worst case*?
+A. $O(n)$
+B. $O(\\log n)$
+C. $O(n^2)$
+D. $O(1)$
+
 ANSWER KEY:
-1A2C3B
+1A2C3B4B
 
 IMPORTANT RULES:
-1. Each question MUST be numbered sequentially
+1. Questions must be numbered sequentially starting from 1
 2. Each question MUST have exactly 4 options (A, B, C, D)
-3. Options must start with the letter followed by a period
-4. Answer key must be at the END in format: 1X2Y3Z... (where X,Y,Z are the option letters)
-5. Use plain ASCII text with Markdown and LaTeX where needed
+3. Options must start with the letter followed by a period and space
+4. Answer key must be at the END in compact format: 1X2Y3Z... (no spaces, no separators)
+5. Use plain ASCII text with Markdown and LaTeX where appropriate
 6. Leave blank lines between questions for readability
+7. Ensure all questions have clear, unambiguous correct answers
+8. Avoid trick questions or ambiguous wording
+9. Make distractors (wrong answers) plausible but clearly incorrect
 
-Now generate [NUMBER] quiz questions about [TOPIC]:`;
+GENERATE QUIZ:
+Please create [NUMBER] multiple-choice questions about [TOPIC].
+Each question should be appropriately challenging and educational.
+
+Topic: [YOUR TOPIC HERE]
+Number of questions: [YOUR NUMBER HERE]`;
         
         navigator.clipboard.writeText(aiPrompt).then(() => {
-            this.view.showAlert('✅ AI prompt copied! Paste it to ChatGPT, Claude, or any LLM to generate quizzes.');
+            this.view.showAlert('✅ AI prompt copied! Paste it to ChatGPT, Claude, or any LLM. Replace [TOPIC] and [NUMBER] placeholders.');
             const btn = document.getElementById('copy-prompt-btn');
             if (btn) {
                 const originalText = btn.textContent;
