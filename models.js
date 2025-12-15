@@ -48,44 +48,76 @@ class Quiz {
         const questions = [];
         const answers = {};
         
-        // First, try to split by question numbers to handle run-together text
-        // This regex finds patterns like "1. " or "1. (LO X.X)" at the start or after an option
-        const questionPattern = /(\d+)\.\s*(\(LO[^)]*\))?\s*([^]+?)(?=\n*\d+\.\s*(?:\(LO[^)]*\))?\s*[A-Z]|\n*ANSWER KEY:|$)/gi;
-        const matches = Array.from(text.matchAll(questionPattern));
-        
-        if (matches.length > 0) {
-            // Use pattern matching approach for run-together text
-            for (const match of matches) {
-                const questionNum = parseInt(match[1]);
-                const lo = match[2] || '';
-                const content = match[3].trim();
-                
-                // Extract question text and options
-                const optionPattern = /([A-D])\.\s*([^\n]+?)(?=\s*[A-D]\.\s*|$)/gi;
-                const options = Array.from(content.matchAll(optionPattern));
-                
-                if (options.length > 0) {
-                    // Find where options start
-                    const firstOptionIndex = content.search(/[A-D]\.\s*/);
-                    const questionText = firstOptionIndex > 0 ? content.substring(0, firstOptionIndex).trim() : content.trim();
-                    
-                    const questionObj = {
-                        number: questionNum,
-                        lo: lo,
-                        text: questionText,
-                        options: options.map(opt => ({
-                            label: opt[1].toUpperCase(),
-                            text: opt[2].trim()
-                        }))
-                    };
-                    
-                    if (questionObj.options.length >= 2) {
-                        questions.push(questionObj);
-                    }
-                }
+        // Extract answer key first and remove it from text
+        const answerKeyMatch = text.match(/ANSWER KEY:\s*(.+)/i);
+        if (answerKeyMatch) {
+            const compactMatches = answerKeyMatch[1].matchAll(/(\d+)([A-D])/gi);
+            for (const match of compactMatches) {
+                answers[parseInt(match[1])] = match[2].toUpperCase();
             }
-        } else {
-            // Fallback to line-by-line parsing for properly formatted text
+            // Remove answer key from text
+            text = text.substring(0, text.indexOf('ANSWER KEY:'));
+        }
+        
+        // Split text by question numbers using a more precise pattern
+        // Match: number. optional(LO) followed by text until next number. or end
+        // This splits on pattern like "2. " or "2. (LO" that comes after option D.
+        const questionSplitPattern = /(?=\d+\.\s*(?:\(LO[^)]*\))?\s*)/g;
+        const questionBlocks = text.split(questionSplitPattern).filter(block => block.trim());
+        
+        for (const block of questionBlocks) {
+            const trimmedBlock = block.trim();
+            if (!trimmedBlock) continue;
+            
+            // Extract question number and LO tag
+            const questionMatch = trimmedBlock.match(/^(\d+)\.\s*(\(LO[^)]*\))?\s*/);
+            if (!questionMatch) continue;
+            
+            const questionNum = parseInt(questionMatch[1]);
+            const lo = questionMatch[2] || '';
+            
+            // Get content after the question number and LO tag
+            const contentAfterNumber = trimmedBlock.substring(questionMatch[0].length);
+            
+            // Extract all options (A. B. C. D.)
+            const optionPattern = /([A-D])\.\s+(.+?)(?=\s+[A-D]\.\s+|\s*$)/gs;
+            const options = [];
+            let lastIndex = 0;
+            let questionText = '';
+            let match;
+            
+            // Find first option to separate question text
+            const firstOptionMatch = contentAfterNumber.match(/\s+([A-D])\.\s+/);
+            if (firstOptionMatch) {
+                questionText = contentAfterNumber.substring(0, firstOptionMatch.index).trim();
+                const optionsText = contentAfterNumber.substring(firstOptionMatch.index);
+                
+                // Extract all options
+                const optionMatches = Array.from(optionsText.matchAll(/([A-D])\.\s+(.+?)(?=\s+[A-D]\.\s+|\s*$)/gs));
+                for (const optMatch of optionMatches) {
+                    options.push({
+                        label: optMatch[1].toUpperCase(),
+                        text: optMatch[2].trim()
+                    });
+                }
+            } else {
+                // No options found in this block, skip
+                continue;
+            }
+            
+            // Only add if we have a valid question with options
+            if (questionText && options.length >= 2) {
+                questions.push({
+                    number: questionNum,
+                    lo: lo,
+                    text: questionText,
+                    options: options
+                });
+            }
+        }
+        
+        // Fallback: if no questions found, try line-by-line parsing
+        if (questions.length === 0) {
             const lines = text.split('\n').filter(line => line.trim() !== '');
             let currentQuestion = null;
             let expectingOptions = false;
@@ -94,7 +126,7 @@ class Quiz {
                 line = line.trim();
                 
                 // Parse answer key
-                if (line.match(/^\d+[A-D]/i) || line.includes('QAns') || line.includes('ANSWER KEY')) {
+                if (line.match(/^\d+[A-D]/i) || line.includes('QAns')) {
                     const compactMatches = line.matchAll(/(\d+)([A-D])/gi);
                     for (const match of compactMatches) {
                         answers[parseInt(match[1])] = match[2].toUpperCase();
@@ -105,7 +137,7 @@ class Quiz {
                 // Parse question (supports both with and without LO tags)
                 const questionMatch = line.match(/^(\d+)\.\s*(\(LO[^)]*\))?\s*(.+)/);
                 if (questionMatch) {
-                    if (currentQuestion) {
+                    if (currentQuestion && currentQuestion.options.length > 0) {
                         questions.push(currentQuestion);
                     }
                     
@@ -126,26 +158,11 @@ class Quiz {
                         label: optionMatch[1].toUpperCase(),
                         text: optionMatch[2]
                     });
-                    
-                    if (currentQuestion.options.length === 4) {
-                        expectingOptions = false;
-                    }
                 }
             }
             
             if (currentQuestion && currentQuestion.options.length > 0) {
                 questions.push(currentQuestion);
-            }
-        }
-        
-        // Parse answer key if not already parsed
-        if (Object.keys(answers).length === 0) {
-            const answerKeyMatch = text.match(/ANSWER KEY:\s*(.+)/i);
-            if (answerKeyMatch) {
-                const compactMatches = answerKeyMatch[1].matchAll(/(\d+)([A-D])/gi);
-                for (const match of compactMatches) {
-                    answers[parseInt(match[1])] = match[2].toUpperCase();
-                }
             }
         }
         
