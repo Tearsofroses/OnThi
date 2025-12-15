@@ -48,55 +48,105 @@ class Quiz {
         const questions = [];
         const answers = {};
         
-        const lines = text.split('\n').filter(line => line.trim() !== '');
-        let currentQuestion = null;
-        let expectingOptions = false;
+        // First, try to split by question numbers to handle run-together text
+        // This regex finds patterns like "1. " or "1. (LO X.X)" at the start or after an option
+        const questionPattern = /(\d+)\.\s*(\(LO[^)]*\))?\s*([^]+?)(?=\n*\d+\.\s*(?:\(LO[^)]*\))?\s*[A-Z]|\n*ANSWER KEY:|$)/gi;
+        const matches = Array.from(text.matchAll(questionPattern));
         
-        for (let line of lines) {
-            line = line.trim();
-            
-            // Parse answer key
-            if (line.match(/^\d+[A-D]/i) || line.includes('QAns')) {
-                const compactMatches = line.matchAll(/(\d+)([A-D])/gi);
-                for (const match of compactMatches) {
-                    answers[parseInt(match[1])] = match[2].toUpperCase();
+        if (matches.length > 0) {
+            // Use pattern matching approach for run-together text
+            for (const match of matches) {
+                const questionNum = parseInt(match[1]);
+                const lo = match[2] || '';
+                const content = match[3].trim();
+                
+                // Extract question text and options
+                const optionPattern = /([A-D])\.\s*([^\n]+?)(?=\s*[A-D]\.\s*|$)/gi;
+                const options = Array.from(content.matchAll(optionPattern));
+                
+                if (options.length > 0) {
+                    // Find where options start
+                    const firstOptionIndex = content.search(/[A-D]\.\s*/);
+                    const questionText = firstOptionIndex > 0 ? content.substring(0, firstOptionIndex).trim() : content.trim();
+                    
+                    const questionObj = {
+                        number: questionNum,
+                        lo: lo,
+                        text: questionText,
+                        options: options.map(opt => ({
+                            label: opt[1].toUpperCase(),
+                            text: opt[2].trim()
+                        }))
+                    };
+                    
+                    if (questionObj.options.length >= 2) {
+                        questions.push(questionObj);
+                    }
                 }
-                continue;
             }
+        } else {
+            // Fallback to line-by-line parsing for properly formatted text
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            let currentQuestion = null;
+            let expectingOptions = false;
             
-            // Parse question
-            const questionMatch = line.match(/^(\d+)\.\s*(\(LO.*?\))?\s*(.+)/);
-            if (questionMatch) {
-                if (currentQuestion) {
-                    questions.push(currentQuestion);
+            for (let line of lines) {
+                line = line.trim();
+                
+                // Parse answer key
+                if (line.match(/^\d+[A-D]/i) || line.includes('QAns') || line.includes('ANSWER KEY')) {
+                    const compactMatches = line.matchAll(/(\d+)([A-D])/gi);
+                    for (const match of compactMatches) {
+                        answers[parseInt(match[1])] = match[2].toUpperCase();
+                    }
+                    continue;
                 }
                 
-                currentQuestion = {
-                    number: parseInt(questionMatch[1]),
-                    lo: questionMatch[2] || '',
-                    text: questionMatch[3],
-                    options: []
-                };
-                expectingOptions = true;
-                continue;
+                // Parse question (supports both with and without LO tags)
+                const questionMatch = line.match(/^(\d+)\.\s*(\(LO[^)]*\))?\s*(.+)/);
+                if (questionMatch) {
+                    if (currentQuestion) {
+                        questions.push(currentQuestion);
+                    }
+                    
+                    currentQuestion = {
+                        number: parseInt(questionMatch[1]),
+                        lo: questionMatch[2] || '',
+                        text: questionMatch[3],
+                        options: []
+                    };
+                    expectingOptions = true;
+                    continue;
+                }
+                
+                // Parse options
+                const optionMatch = line.match(/^([A-D])\.\s*(.+)/);
+                if (optionMatch && currentQuestion && expectingOptions) {
+                    currentQuestion.options.push({
+                        label: optionMatch[1].toUpperCase(),
+                        text: optionMatch[2]
+                    });
+                    
+                    if (currentQuestion.options.length === 4) {
+                        expectingOptions = false;
+                    }
+                }
             }
             
-            // Parse options
-            const optionMatch = line.match(/^([A-D])\.\s*(.+)/);
-            if (optionMatch && currentQuestion && expectingOptions) {
-                currentQuestion.options.push({
-                    label: optionMatch[1].toUpperCase(),
-                    text: optionMatch[2]
-                });
-                
-                if (currentQuestion.options.length === 4) {
-                    expectingOptions = false;
-                }
+            if (currentQuestion && currentQuestion.options.length > 0) {
+                questions.push(currentQuestion);
             }
         }
         
-        if (currentQuestion && currentQuestion.options.length > 0) {
-            questions.push(currentQuestion);
+        // Parse answer key if not already parsed
+        if (Object.keys(answers).length === 0) {
+            const answerKeyMatch = text.match(/ANSWER KEY:\s*(.+)/i);
+            if (answerKeyMatch) {
+                const compactMatches = answerKeyMatch[1].matchAll(/(\d+)([A-D])/gi);
+                for (const match of compactMatches) {
+                    answers[parseInt(match[1])] = match[2].toUpperCase();
+                }
+            }
         }
         
         return { questions, answers };
