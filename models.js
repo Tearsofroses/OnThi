@@ -65,19 +65,22 @@ class Quiz {
         const questionSplitPattern = /(?=\d+\.\s*(?:\(LO[^)]*\))?\s*)/g;
         const questionBlocks = text.split(questionSplitPattern).filter(block => block.trim());
         
+        let questionCounter = 1; // Sequential numbering from 1
+        
         for (const block of questionBlocks) {
             const trimmedBlock = block.trim();
             if (!trimmedBlock) continue;
             
-            // Extract question number and LO tag
+            // Extract question number and LO tag (but we'll use sequential numbering)
             const questionMatch = trimmedBlock.match(/^(\d+)\.\s*(\(LO[^)]*\))?\s*/);
             if (!questionMatch) continue;
             
-            const questionNum = parseInt(questionMatch[1]);
+            const originalNum = parseInt(questionMatch[1]);
             const lo = questionMatch[2] || '';
             
-            // Get content after the question number and LO tag
-            const contentAfterNumber = trimmedBlock.substring(questionMatch[0].length);
+            // Get content after the question number (keep LO tag in the text)
+            const contentStart = questionMatch[0].length - (lo ? lo.length : 0);
+            const contentAfterNumber = trimmedBlock.substring(contentStart).trim();
             
             // Extract all options (A. B. C. D.)
             const optionPattern = /([A-D])\.\s+(.+?)(?=\s+[A-D]\.\s+|\s*$)/gs;
@@ -108,11 +111,19 @@ class Quiz {
             // Only add if we have a valid question with options
             if (questionText && options.length >= 2) {
                 questions.push({
-                    number: questionNum,
-                    lo: lo,
-                    text: questionText,
+                    number: questionCounter++, // Use sequential numbering
+                    lo: '', // LO tag is now part of the question text
+                    text: questionText, // This includes the (LO X.X) tag
                     options: options
                 });
+                
+                // Update answer key to use new sequential numbering
+                if (answers[originalNum]) {
+                    answers[questionCounter - 1] = answers[originalNum];
+                    if (originalNum !== questionCounter - 1) {
+                        delete answers[originalNum];
+                    }
+                }
             }
         }
         
@@ -121,6 +132,7 @@ class Quiz {
             const lines = text.split('\n').filter(line => line.trim() !== '');
             let currentQuestion = null;
             let expectingOptions = false;
+            let questionCounter = 1;
             
             for (let line of lines) {
                 line = line.trim();
@@ -134,18 +146,21 @@ class Quiz {
                     continue;
                 }
                 
-                // Parse question (supports both with and without LO tags)
-                const questionMatch = line.match(/^(\d+)\.\s*(\(LO[^)]*\))?\s*(.+)/);
+                // Parse question (keep LO tag in text, use sequential numbering)
+                const questionMatch = line.match(/^(\d+)\.\s*(.+)/);
                 if (questionMatch) {
                     if (currentQuestion && currentQuestion.options.length > 0) {
                         questions.push(currentQuestion);
+                        questionCounter++;
                     }
                     
+                    const originalNum = parseInt(questionMatch[1]);
                     currentQuestion = {
-                        number: parseInt(questionMatch[1]),
-                        lo: questionMatch[2] || '',
-                        text: questionMatch[3],
-                        options: []
+                        number: questionCounter,
+                        lo: '',
+                        text: questionMatch[2], // Keep (LO X.X) in the text
+                        options: [],
+                        _originalNum: originalNum // Track original for answer mapping
                     };
                     expectingOptions = true;
                     continue;
@@ -164,6 +179,16 @@ class Quiz {
             if (currentQuestion && currentQuestion.options.length > 0) {
                 questions.push(currentQuestion);
             }
+            
+            // Remap answers to sequential numbering
+            const newAnswers = {};
+            questions.forEach((q, idx) => {
+                if (q._originalNum && answers[q._originalNum]) {
+                    newAnswers[idx + 1] = answers[q._originalNum];
+                }
+                delete q._originalNum; // Clean up temporary property
+            });
+            Object.assign(answers, newAnswers);
         }
         
         return { questions, answers };
