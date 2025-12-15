@@ -59,71 +59,59 @@ class Quiz {
             text = text.substring(0, text.indexOf('ANSWER KEY:'));
         }
         
-        // Split text by question numbers using a more precise pattern
-        // Match: number. optional(LO) followed by text until next number. or end
-        // This splits on pattern like "2. " or "2. (LO" that comes after option D.
-        const questionSplitPattern = /(?=\d+\.\s*(?:\(LO[^)]*\))?\s*)/g;
-        const questionBlocks = text.split(questionSplitPattern).filter(block => block.trim());
+        // Split text by question patterns - handle both numbered and unnumbered questions
+        // Pattern 1: "1. (LO X.X)" or "1. Question text"
+        // Pattern 2: Just "(LO X.X) Question text" (no number)
+        const questionSplitPattern = /(?=(?:\d+\.\s*)?(?:\(LO[^)]*\))?\s*[A-Z])/g;
         
-        let questionCounter = 1; // Sequential numbering from 1
+        // Better approach: split by paragraphs first, then identify questions
+        const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim());
         
-        for (const block of questionBlocks) {
-            const trimmedBlock = block.trim();
-            if (!trimmedBlock) continue;
+        let questionCounter = 1;
+        
+        for (const para of paragraphs) {
+            const trimmedPara = para.trim();
+            if (!trimmedPara) continue;
             
-            // Extract question number and LO tag (but we'll use sequential numbering)
-            const questionMatch = trimmedBlock.match(/^(\d+)\.\s*(\(LO[^)]*\))?\s*/);
-            if (!questionMatch) continue;
+            // Check if this paragraph looks like a question (has options A. B. C. D.)
+            const hasOptions = /\s+[A-D]\.\s+/g.test(trimmedPara);
+            if (!hasOptions) continue;
             
-            const originalNum = parseInt(questionMatch[1]);
-            const lo = questionMatch[2] || '';
-            
-            // Get content after the question number (keep LO tag in the text)
-            const contentStart = questionMatch[0].length - (lo ? lo.length : 0);
-            const contentAfterNumber = trimmedBlock.substring(contentStart).trim();
-            
-            // Extract all options (A. B. C. D.)
-            const optionPattern = /([A-D])\.\s+(.+?)(?=\s+[A-D]\.\s+|\s*$)/gs;
-            const options = [];
-            let lastIndex = 0;
+            // Try to match numbered question: "1. (LO X.X) text" or "1. text"
+            let questionMatch = trimmedPara.match(/^(\d+)\.\s*(.*)/s);
             let questionText = '';
-            let match;
+            let contentWithOptions = '';
             
-            // Find first option to separate question text
-            const firstOptionMatch = contentAfterNumber.match(/\s+([A-D])\.\s+/);
-            if (firstOptionMatch) {
-                questionText = contentAfterNumber.substring(0, firstOptionMatch.index).trim();
-                const optionsText = contentAfterNumber.substring(firstOptionMatch.index);
-                
-                // Extract all options
-                const optionMatches = Array.from(optionsText.matchAll(/([A-D])\.\s+(.+?)(?=\s+[A-D]\.\s+|\s*$)/gs));
-                for (const optMatch of optionMatches) {
-                    options.push({
-                        label: optMatch[1].toUpperCase(),
-                        text: optMatch[2].trim()
-                    });
-                }
+            if (questionMatch) {
+                // Has explicit number, ignore it and use sequential
+                contentWithOptions = questionMatch[2].trim();
             } else {
-                // No options found in this block, skip
-                continue;
+                // No number, might start with (LO X.X) or just text
+                contentWithOptions = trimmedPara;
             }
             
-            // Only add if we have a valid question with options
+            // Find where options start (first occurrence of A. B. C. or D. preceded by whitespace)
+            const firstOptionMatch = contentWithOptions.match(/\s+([A-D])\.\s+/);
+            if (!firstOptionMatch) continue;
+            
+            questionText = contentWithOptions.substring(0, firstOptionMatch.index).trim();
+            const optionsText = contentWithOptions.substring(firstOptionMatch.index);
+            
+            // Extract all options
+            const optionMatches = Array.from(optionsText.matchAll(/([A-D])\.\s+(.+?)(?=\s+[A-D]\.\s+|\s*$)/gs));
+            const options = optionMatches.map(opt => ({
+                label: opt[1].toUpperCase(),
+                text: opt[2].trim()
+            }));
+            
+            // Only add if we have a valid question with at least 2 options
             if (questionText && options.length >= 2) {
                 questions.push({
-                    number: questionCounter++, // Use sequential numbering
-                    lo: '', // LO tag is now part of the question text
-                    text: questionText, // This includes the (LO X.X) tag
+                    number: questionCounter++,
+                    lo: '',
+                    text: questionText,
                     options: options
                 });
-                
-                // Update answer key to use new sequential numbering
-                if (answers[originalNum]) {
-                    answers[questionCounter - 1] = answers[originalNum];
-                    if (originalNum !== questionCounter - 1) {
-                        delete answers[originalNum];
-                    }
-                }
             }
         }
         
@@ -146,21 +134,27 @@ class Quiz {
                     continue;
                 }
                 
-                // Parse question (keep LO tag in text, use sequential numbering)
-                const questionMatch = line.match(/^(\d+)\.\s*(.+)/);
+                // Parse question - with or without number
+                // Match "1. text" or "1. (LO X.X) text" or "(LO X.X) text"
+                let questionMatch = line.match(/^(\d+)\.\s*(.+)/);
+                if (!questionMatch) {
+                    // Try matching lines that start with (LO X.X) without a number
+                    if (line.match(/^\(LO[^)]*\)/)) {
+                        questionMatch = [line, null, line];
+                    }
+                }
+                
                 if (questionMatch) {
                     if (currentQuestion && currentQuestion.options.length > 0) {
                         questions.push(currentQuestion);
                         questionCounter++;
                     }
                     
-                    const originalNum = parseInt(questionMatch[1]);
                     currentQuestion = {
                         number: questionCounter,
                         lo: '',
-                        text: questionMatch[2], // Keep (LO X.X) in the text
-                        options: [],
-                        _originalNum: originalNum // Track original for answer mapping
+                        text: questionMatch[2],
+                        options: []
                     };
                     expectingOptions = true;
                     continue;
@@ -179,16 +173,6 @@ class Quiz {
             if (currentQuestion && currentQuestion.options.length > 0) {
                 questions.push(currentQuestion);
             }
-            
-            // Remap answers to sequential numbering
-            const newAnswers = {};
-            questions.forEach((q, idx) => {
-                if (q._originalNum && answers[q._originalNum]) {
-                    newAnswers[idx + 1] = answers[q._originalNum];
-                }
-                delete q._originalNum; // Clean up temporary property
-            });
-            Object.assign(answers, newAnswers);
         }
         
         return { questions, answers };
