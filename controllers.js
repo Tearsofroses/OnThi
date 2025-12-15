@@ -953,6 +953,12 @@ D. A hierarchy of objects.
     copyAIPrompt() {
         const aiPrompt = `You are a quiz generator assistant. I need you to create multiple-choice questions for an interactive online quiz platform.
 
+CRITICAL OUTPUT REQUIREMENT:
+YOU MUST OUTPUT RAW PLAIN TEXT ONLY - NO MARKDOWN RENDERING, NO FORMATTING CONVERSION!
+Output the text EXACTLY as shown in the example with literal asterisks, backticks, and dollar signs.
+DO NOT convert **text** to bold, DO NOT convert *text* to italics, DO NOT render LaTeX.
+The user needs to COPY the raw text including all formatting markers.
+
 ABOUT THE PLATFORM:
 This quiz system supports rich text formatting including Markdown and LaTeX math notation. Questions will be parsed automatically and displayed in an interactive interface where students can practice and test their knowledge.
 
@@ -967,14 +973,14 @@ FORMAT REQUIREMENTS:
 - Provide the complete answer key at the END in compact format: 1A2B3C4D5A...
 - Leave blank lines between questions for readability
 
-SUPPORTED FORMATTING:
-- **Bold text**: Use **text** or __text__ for emphasis
-- *Italic text*: Use *text* or _text_ for subtle emphasis
-- \`Inline code\`: Use \`code\` for programming syntax, commands, or technical terms
-- LaTeX math: Use $\\pi$, $\\sigma$, $\\sum$, $\\int$, $R(X, Y, Z)$ for mathematical expressions
-- [Links](url): Use [text](url) for hyperlinks (if needed)
+SUPPORTED FORMATTING (OUTPUT AS RAW TEXT):
+- **Bold text**: Use **text** or __text__ for emphasis (keep the asterisks/underscores)
+- *Italic text*: Use *text* or _text_ for subtle emphasis (keep the asterisks/underscores)
+- \`Inline code\`: Use \`code\` for programming syntax, commands, or technical terms (keep the backticks)
+- LaTeX math: Use $\\pi$, $\\sigma$, $\\sum$, $\\int$, $R(X, Y, Z)$ for mathematical expressions (keep the dollar signs)
+- [Links](url): Use [text](url) for hyperlinks if needed (keep the brackets)
 
-EXAMPLE OUTPUT:
+EXAMPLE OUTPUT (RAW TEXT - COPY EXACTLY AS IS):
 
 1. (LO 1.1) Which of the following best describes **database normalization**?
 A. A process to **minimize** data redundancy
@@ -991,7 +997,7 @@ D. Creates a new table
 3. (LO 2.1) In relational algebra, what does the symbol $\\pi$ represent?
 A. Product operation
 B. **Projection** operation
-C. Selection operation  
+C. Selection operation
 D. Join operation
 
 4. (LO 2.2) What is the time complexity of binary search in the *worst case*?
@@ -1004,15 +1010,18 @@ ANSWER KEY:
 1A2C3B4B
 
 IMPORTANT RULES:
-1. Questions must be numbered sequentially starting from 1
-2. Each question MUST have exactly 4 options (A, B, C, D)
-3. Options must start with the letter followed by a period and space
-4. Answer key must be at the END in compact format: 1X2Y3Z... (no spaces, no separators)
-5. Use plain ASCII text with Markdown and LaTeX where appropriate
-6. Leave blank lines between questions for readability
-7. Ensure all questions have clear, unambiguous correct answers
-8. Avoid trick questions or ambiguous wording
-9. Make distractors (wrong answers) plausible but clearly incorrect
+1. OUTPUT RAW TEXT ONLY - Do not render Markdown, LaTeX, or any formatting
+2. Keep all formatting markers visible: **, *, \`, $, [], etc.
+3. Questions must be numbered sequentially: 1. 2. 3. etc.
+4. Each question MUST have exactly 4 options labeled: A. B. C. D.
+5. Options must start with the letter followed by period and space
+6. Answer key must be at the END in compact format: 1A2C3B4B (no spaces)
+7. Leave blank lines between questions for readability
+8. Ensure all questions have clear, unambiguous correct answers
+9. Avoid trick questions or ambiguous wording
+10. Make distractors (wrong answers) plausible but clearly incorrect
+
+REMINDER: Output as RAW PLAIN TEXT so the user can copy the numbering (1. 2. 3.) and option letters (A. B. C. D.) directly!
 
 GENERATE QUIZ:
 Please create [NUMBER] multiple-choice questions about [TOPIC].
