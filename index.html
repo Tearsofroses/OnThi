@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="styles.css?v=1.0.1">
     <!-- Marked.js for Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <!-- JSZip for ZIP file handling -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- Google reCAPTCHA v3 -->
     <script src="https://www.google.com/recaptcha/api.js?render=6LfFVyksAAAAAHRZbip60OZY6h19WSAwrKojXlf5"></script>
 </head>
@@ -41,7 +43,7 @@
                         <option value="all">All Courses</option>
                     </select>
                 </div>
-                <div id="shared-quizzes-list" class="quiz-list">
+                <div id="shared-quizzes-list" class="quiz-list" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 10px;">
                     <p class="no-quizzes">Loading community quizzes...</p>
                 </div>
                 <p class="share-info">💡 Click "📤 Share to Community" to publish your quiz for everyone!<br>
@@ -87,7 +89,86 @@ D. A hierarchy of objects.</pre>
                 </div>
             </div>
             
-            <p>Paste your MCQ questions and answer key below:</p>
+            <!-- Moodle Quiz Auto-Extractor -->
+            <div class="image-extraction-section">
+                <div class="image-extraction-header">
+                    <strong>🔐 Moodle Quiz Auto-Extractor</strong>
+                    <p class="extraction-hint">Extract quiz directly from Moodle with your credentials (100% client-side)</p>
+                </div>
+                
+                <div class="extraction-step">
+                    <div class="step-header">🎯 Automatic Extraction</div>
+                    <p class="step-description">Extract quiz content from Moodle with all images and resources.</p>
+                    
+                    <div class="moodle-form">
+                        <h3>🚀 Moodle Quiz Extractor</h3>
+                        <p class="form-hint">Extract quiz review pages from Moodle with all images and resources</p>
+                        
+                        <div class="form-group">
+                            <label for="moodle-url">Quiz Review URL</label>
+                            <input type="url" id="moodle-url" class="form-input" placeholder="https://moodle.example.edu/mod/quiz/review.php?attempt=12345" required>
+                            <small class="form-hint">Paste the URL of the quiz REVIEW page (after completing the quiz)</small>
+                        </div>
+
+                        <div class="security-notice">
+                            <strong>💡 EASIEST Method:</strong> Use the console code to create ONE self-contained HTML file!
+                            <br><br>
+                            <strong>4 Simple Steps:</strong><br>
+                            1. Click "Generate Code" below<br>
+                            2. A new tab opens → Press <code>F12</code> for Console<br>
+                            3. Press <code>Ctrl+V</code> to paste (already copied!)<br>
+                            4. Press <code>Enter</code> → Quiz downloads automatically!<br>
+                            <br>
+                            Then upload the downloaded HTML file using <strong>"📄 Upload HTML File"</strong> button above.
+                        </div>
+
+                        <div class="form-group">
+                            <button id="extract-moodle-btn" class="btn-submit" style="width: 100%;">📋 Generate Extraction Code</button>
+                        </div>
+
+                        <div id="extraction-status" class="extraction-status"></div>
+                    </div>
+                    
+                    <div class="security-notice" style="margin-top: 15px;">
+                        <strong>🔐 Privacy & Security:</strong>
+                        <ul>
+                            <li>✓ All processing in your browser</li>
+                            <li>✓ No data sent to external servers</li>
+                            <li>✓ Open source - verify the code yourself</li>
+                            <li>⚠️ Only use on trusted networks</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="upload-options-section" style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                <h3 style="color: white; margin: 0 0 15px 0; font-size: 18px; text-align: center;">📥 Upload Quiz Files</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                    <label class="btn-submit" style="margin: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px; background: white; color: #667eea; border-radius: 8px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        <span style="font-size: 32px;">📄</span>
+                        <strong>Upload HTML File</strong>
+                        <small style="opacity: 0.8; text-align: center;">Moodle quiz HTML</small>
+                        <input type="file" id="uploadHtmlFile" accept=".html,.htm" style="display: none;">
+                    </label>
+                    <label class="btn-submit" style="margin: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px; background: white; color: #667eea; border-radius: 8px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        <span style="font-size: 32px;">📁</span>
+                        <strong>Upload Folder</strong>
+                        <small style="opacity: 0.8; text-align: center;">Quiz with images</small>
+                        <input type="file" id="uploadFolderBtn" webkitdirectory directory multiple style="display: none;">
+                    </label>
+                    <label class="btn-submit" style="margin: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px; background: white; color: #667eea; border-radius: 8px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        <span style="font-size: 32px;">📦</span>
+                        <strong>Upload ZIP</strong>
+                        <small style="opacity: 0.8; text-align: center;">Compressed quiz</small>
+                        <input type="file" id="uploadZipFile" accept=".zip" style="display: none;">
+                    </label>
+                </div>
+            </div>
+            
+            <p style="text-align: center; margin: 20px 0 10px 0; color: #666;">Or paste your MCQ questions below:</p>
+            
+            <textarea id="quiz-input" placeholder="Paste your questions here..."></textarea>
+            
             <div class="quiz-name-section">
                 <label for="quiz-name-input">Quiz Name <span style="color: red;">*</span></label>
                 <input type="text" id="quiz-name-input" placeholder="e.g., Database Management Final Exam" maxlength="100" required>
@@ -106,17 +187,16 @@ D. A hierarchy of objects.</pre>
                     <span class="timer-hint">⏱️ Leave empty for no time limit</span>
                 </div>
             </div>
-            <textarea id="quiz-input" placeholder="Paste your questions here..."></textarea>
             
             <div class="input-actions">
-                <button id="start-quiz-btn" class="btn btn-primary">Start Quiz</button>
+                <button id="start-quiz-btn" class="btn btn-primary">Parse and Start Quiz</button>
                 <button id="publish-quiz-btn" class="btn btn-success">📤 Share to Community</button>
             </div>
         </div>
 
         <!-- Quiz Section -->
         <div id="quiz-section" class="section hidden quiz-with-chat">
-            <div class="quiz-main-content">
+            <div class="quiz-main-content chat-hidden">
                 <div class="quiz-header">
                     <button id="return-to-main-btn" class="btn-return" title="Return to Main Page">← Back</button>
                     <button id="show-chat-btn" class="btn-show-chat hidden" title="Show AI Chat">💬 Show AI Helper</button>
@@ -143,10 +223,10 @@ D. A hierarchy of objects.</pre>
             </div>
 
             <!-- AI Chat Sidebar -->
-            <div id="ai-chat-sidebar" class="ai-chat-sidebar">
+            <div id="ai-chat-sidebar" class="ai-chat-sidebar hidden">
                 <div class="chat-header">
                     <h3>💬 AI Study Helper</h3>
-                    <button id="chat-toggle-btn" class="chat-toggle-btn">Hide</button>
+                    <button id="chat-toggle-btn" class="chat-toggle-btn">Show</button>
                 </div>
                 <div id="chat-status" class="chat-status">
                     ⚙️ Configure AI in settings to get help
@@ -228,7 +308,7 @@ D. A hierarchy of objects.</pre>
         <!-- Results Section -->
         <div id="results-section" class="section hidden">
             <div class="results-with-chat-container">
-            <div class="results-main-content">
+            <div class="results-main-content chat-hidden">
             <h2>Quiz Results</h2>
             <div class="score-summary">
                 <div class="score-circle">
@@ -246,10 +326,10 @@ D. A hierarchy of objects.</pre>
             </div>
 
             <!-- AI Chat Sidebar for Review -->
-            <div id="review-chat-sidebar" class="ai-chat-sidebar">
+            <div id="review-chat-sidebar" class="ai-chat-sidebar hidden">
                 <div class="chat-header">
                     <h3>💬 Review Helper</h3>
-                    <button id="review-chat-toggle-btn" class="chat-toggle-btn">Hide</button>
+                    <button id="review-chat-toggle-btn" class="chat-toggle-btn">Show</button>
                 </div>
                 <div id="review-chat-status" class="chat-status">
                     ⚙️ Configure AI in settings to get help

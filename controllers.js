@@ -109,6 +109,287 @@ class QuizController {
                 this.handleReviewQuickAction(e.target.dataset.action);
             }
         });
+
+        // Moodle auto-extractor listeners
+        const extractMoodleBtn = document.getElementById('extract-moodle-btn');
+        if (extractMoodleBtn) {
+            extractMoodleBtn.addEventListener('click', () => this.extractFromMoodle());
+        }
+
+        // HTML file upload
+        const uploadHtmlFile = document.getElementById('uploadHtmlFile');
+        if (uploadHtmlFile) {
+            uploadHtmlFile.addEventListener('change', (e) => this.handleHtmlUpload(e));
+        }
+
+        // Folder upload
+        const uploadFolderBtn = document.getElementById('uploadFolderBtn');
+        if (uploadFolderBtn) {
+            uploadFolderBtn.addEventListener('change', (e) => this.handleFolderUpload(e));
+        }
+
+        // ZIP upload
+        const uploadZipFile = document.getElementById('uploadZipFile');
+        if (uploadZipFile) {
+            uploadZipFile.addEventListener('change', (e) => this.handleZipUpload(e));
+        }
+    }
+
+    async handleHtmlUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+            const content = await file.text();
+            
+            // Put it in the textarea
+            const textarea = document.getElementById('quiz-input');
+            if (textarea) {
+                textarea.value = content;
+                this.view.showAlert(`✅ Loaded ${file.name} - Click "Parse and Start" to create quiz!`);
+            }
+        } catch (error) {
+            console.error('Error reading HTML file:', error);
+            this.view.showAlert('❌ Error reading HTML file: ' + error.message);
+        }
+        
+        // Reset file input
+        event.target.value = '';
+    }
+
+    async handleFolderUpload(event) {
+        const files = Array.from(event.target.files);
+        if (files.length === 0) return;
+
+        try {
+            let htmlContent = null;
+            let htmlFilename = '';
+            const resources = {}; // Store all resources (images, CSS, JS, etc.)
+            const folderName = files[0].webkitRelativePath ? files[0].webkitRelativePath.split('/')[0] : '';
+
+            // Process all files
+            for (const file of files) {
+                const filename = file.name;
+                const filepath = file.webkitRelativePath || filename;
+                const relativePath = filepath.includes('/') ? filepath.split('/').slice(1).join('/') : filename;
+
+                if (filename.endsWith('.html') || filename.endsWith('.htm')) {
+                    // Read main HTML file
+                    htmlContent = await file.text();
+                    htmlFilename = filename;
+                } else if (filename.match(/\.(png|jpg|jpeg|gif|svg|webp|bmp|ico)$/i)) {
+                    // Read image as base64
+                    const base64 = await this.fileToBase64(file);
+                    resources[relativePath] = base64;
+                    resources[filename] = base64; // Also store by filename alone
+                } else if (filename.endsWith('.php') || filename.endsWith('.css') || filename.endsWith('.js')) {
+                    // Store other resources that might be referenced
+                    const content = await file.text();
+                    resources[relativePath] = content;
+                    resources[filename] = content;
+                }
+            }
+
+            if (!htmlContent) {
+                throw new Error(`No HTML file found in folder "${folderName}".
+
+📋 SOLUTION:
+When you save from Moodle (Ctrl+S → "Webpage, Complete"), you get TWO things:
+1. An HTML file (e.g., "QUIZ 4 - Attempt review.html") 
+2. A folder (e.g., "QUIZ 4 - Attempt review_files")
+
+⚠️ The folder upload only sees files INSIDE the folder, not the HTML file next to it.
+
+✅ BETTER OPTIONS:
+
+Option 1 - Use ZIP instead:
+  1. Select both the HTML file AND the folder
+  2. Right-click → "Send to" → "Compressed (zipped) folder"
+  3. Use "📦 Upload ZIP" button instead
+
+Option 2 - Manual paste:
+  1. Open the HTML file in a text editor (Notepad, VS Code, etc.)
+  2. Copy ALL the content (Ctrl+A, Ctrl+C)
+  3. Paste directly into the quiz input box
+  4. Click "Parse and Start"
+
+Option 3 - Use single HTML upload:
+  1. If images are already embedded (base64), just use "📄 Upload HTML File"
+  2. Select the .html file
+
+Try Option 1 (ZIP) - it's the easiest!`);
+            }
+
+            // Parse the HTML to extract images referenced in the content
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+            let embeddedCount = 0;
+            let externalCount = 0;
+
+            // Process all img tags
+            const images = doc.querySelectorAll('img');
+            images.forEach(img => {
+                const src = img.getAttribute('src');
+                if (!src) return;
+
+                // Try multiple patterns to find the image
+                let imageData = null;
+                
+                // Pattern 1: Direct filename match
+                const filename = src.split('/').pop().split('\\').pop();
+                if (resources[filename]) {
+                    imageData = resources[filename];
+                }
+                
+                // Pattern 2: Relative path from HTML
+                if (!imageData && resources[src]) {
+                    imageData = resources[src];
+                }
+                
+                // Pattern 3: Try folder name + filename
+                if (!imageData && folderName) {
+                    const folderPath = folderName + '/' + src;
+                    if (resources[folderPath]) {
+                        imageData = resources[folderPath];
+                    }
+                }
+
+                // Pattern 4: Try removing leading path components
+                if (!imageData) {
+                    const parts = src.split('/');
+                    for (let i = 1; i < parts.length; i++) {
+                        const partialPath = parts.slice(i).join('/');
+                        if (resources[partialPath]) {
+                            imageData = resources[partialPath];
+                            break;
+                        }
+                    }
+                }
+
+                if (imageData) {
+                    img.setAttribute('src', imageData);
+                    embeddedCount++;
+                } else if (!src.startsWith('data:') && !src.startsWith('http')) {
+                    console.warn('Image not found in folder:', src);
+                    externalCount++;
+                }
+            });
+
+            // Get the processed HTML
+            const processedHtml = doc.documentElement.outerHTML;
+
+            // Set the processed HTML to the textarea
+            this.view.quizInput.value = processedHtml;
+
+            // Show success message with details
+            if (statusEl) {
+                let message = `✅ Moodle folder processed successfully!`;
+                if (embeddedCount > 0) {
+                    message += `\n📸 Embedded ${embeddedCount} images`;
+                }
+                if (externalCount > 0) {
+                    message += `\n⚠️ ${externalCount} images not found in folder`;
+                }
+                message += `\n📁 Processed ${files.length} files total`;
+                statusEl.textContent = message;
+                statusEl.className = 'upload-status success';
+                statusEl.style.whiteSpace = 'pre-line';
+            }
+
+            this.view.showAlert(`Quiz loaded! ${embeddedCount} images embedded. Click "Parse and Start" to begin.`);
+
+            // Reset file input
+            event.target.value = '';
+
+        } catch (error) {
+            console.error('Error processing folder:', error);
+            if (statusEl) {
+                statusEl.textContent = `❌ Error: ${error.message}`;
+                statusEl.className = 'upload-status warning';
+            }
+            this.view.showAlert('Error processing folder: ' + error.message);
+        }
+    }
+
+    async handleZipUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const statusEl = document.getElementById('zip-upload-status');
+        if (statusEl) {
+            statusEl.textContent = '📦 Processing ZIP file...';
+            statusEl.className = 'upload-status warning';
+        }
+
+        try {
+            const zip = await JSZip.loadAsync(file);
+            let htmlContent = null;
+            let htmlFilename = '';
+            const images = {};
+
+            // Extract HTML file and images
+            for (const [filename, fileData] of Object.entries(zip.files)) {
+                if (filename.endsWith('.html') || filename.endsWith('.htm')) {
+                    htmlContent = await fileData.async('text');
+                    htmlFilename = filename;
+                } else if (filename.match(/\.(png|jpg|jpeg|gif|svg|webp|bmp)$/i)) {
+                    // Extract images as base64
+                    const base64 = await fileData.async('base64');
+                    const ext = filename.split('.').pop().toLowerCase();
+                    const mimeTypes = {
+                        'png': 'image/png',
+                        'jpg': 'image/jpeg',
+                        'jpeg': 'image/jpeg',
+                        'gif': 'image/gif',
+                        'svg': 'image/svg+xml',
+                        'webp': 'image/webp',
+                        'bmp': 'image/bmp'
+                    };
+                    const mimeType = mimeTypes[ext] || 'image/png';
+                    const imageName = filename.split('/').pop().split('\\').pop();
+                    images[imageName] = `data:${mimeType};base64,${base64}`;
+                }
+            }
+
+            if (!htmlContent) {
+                throw new Error('No HTML file found in ZIP');
+            }
+
+            // Replace image paths with base64
+            let processedHtml = htmlContent;
+            const imageCount = Object.keys(images).length;
+            
+            if (imageCount > 0) {
+                // Replace image src attributes
+                const imgRegex = /<img([^>]*?)src=["']([^"']+)["']([^>]*?)>/gi;
+                processedHtml = processedHtml.replace(imgRegex, (match, before, src, after) => {
+                    const fileName = src.split('/').pop().split('\\').pop();
+                    if (images[fileName]) {
+                        return `<img${before}src="${images[fileName]}"${after}>`;
+                    }
+                    return match;
+                });
+            }
+
+            // Set the processed HTML to the textarea
+            this.view.quizInput.value = processedHtml;
+
+            // Show success message
+            if (statusEl) {
+                statusEl.textContent = `✅ ZIP processed successfully! Found ${imageCount} images embedded.`;
+                statusEl.className = 'upload-status success';
+            }
+
+            // Reset file input
+            event.target.value = '';
+
+        } catch (error) {
+            console.error('Error processing ZIP:', error);
+            if (statusEl) {
+                statusEl.textContent = `❌ Error: ${error.message}`;
+                statusEl.className = 'upload-status warning';
+            }
+        }
         
         // AI Chat event listeners
         this.view.chatToggleBtn.addEventListener('click', () => this.view.toggleChatSidebar());
@@ -675,13 +956,19 @@ class QuizController {
         }
     }
     
+    stripBase64Images(content) {
+        if (!content) return content;
+        // Replace base64 image data with placeholder to save space
+        return content.replace(/src="data:image\/[^;]+;base64,[^"]+"/g, 'src="data:image/placeholder"');
+    }
+    
     saveCurrentSession() {
         if (!this.currentQuiz) return;
         
         const sessions = this.getAllSessions();
         const sessionData = {
             id: this.currentSessionId || Date.now(),
-            quizContent: this.currentQuiz.content,
+            quizContent: this.stripBase64Images(this.currentQuiz.content),
             quizTitle: this.currentQuiz.title,
             currentQuestionIndex: this.currentQuestionIndex,
             userAnswers: this.userAnswers,
@@ -705,12 +992,26 @@ class QuizController {
             sessions.unshift(sessionData);
         }
         
-        // Keep only last 20 sessions
-        if (sessions.length > 20) {
-            sessions.splice(20);
+        // Keep only last 10 sessions to save space
+        if (sessions.length > 10) {
+            sessions.splice(10);
         }
         
-        localStorage.setItem(this.sessionsKey, JSON.stringify(sessions));
+        try {
+            localStorage.setItem(this.sessionsKey, JSON.stringify(sessions));
+        } catch (e) {
+            if (e.name === 'QuotaExceededError' || e.code === 22) {
+                // Storage quota exceeded, try to save with even fewer sessions
+                console.warn('Storage quota exceeded, reducing to 5 sessions');
+                sessions.splice(5);
+                try {
+                    localStorage.setItem(this.sessionsKey, JSON.stringify(sessions));
+                } catch (e2) {
+                    console.error('Failed to save session even after reduction:', e2);
+                    this.view.showAlert('Warning: Unable to save quiz progress due to storage limitations.');
+                }
+            }
+        }
         this.displaySessions();
     }
     
@@ -718,13 +1019,25 @@ class QuizController {
         if (!this.currentQuiz) return;
         
         const sessions = this.getAllSessions();
+        
+        // Strip base64 images from questions to reduce storage size
+        const questionsWithoutImages = this.currentQuiz.questions.map(q => ({
+            number: q.number,
+            lo: q.lo,
+            text: this.stripBase64Images(q.text),
+            options: q.options.map(o => ({
+                label: o.label,
+                text: this.stripBase64Images(o.text)
+            }))
+        }));
+        
         const sessionData = {
             id: this.currentSessionId || Date.now(),
-            quizContent: this.currentQuiz.content,
+            quizContent: this.stripBase64Images(this.currentQuiz.content),
             quizTitle: this.currentQuiz.title,
             userAnswers: this.userAnswers,
             correctAnswers: this.currentQuiz.answers,
-            questions: this.currentQuiz.questions,
+            questions: questionsWithoutImages,
             totalQuestions: this.currentQuiz.questions.length,
             score: score,
             percentage: Math.round((score / this.currentQuiz.questions.length) * 100),
@@ -742,7 +1055,26 @@ class QuizController {
             sessions.unshift(sessionData);
         }
         
-        localStorage.setItem(this.sessionsKey, JSON.stringify(sessions));
+        // Keep only last 10 sessions
+        if (sessions.length > 10) {
+            sessions.splice(10);
+        }
+        
+        try {
+            localStorage.setItem(this.sessionsKey, JSON.stringify(sessions));
+        } catch (e) {
+            if (e.name === 'QuotaExceededError' || e.code === 22) {
+                console.warn('Storage quota exceeded, reducing to 5 sessions');
+                sessions.splice(5);
+                try {
+                    localStorage.setItem(this.sessionsKey, JSON.stringify(sessions));
+                } catch (e2) {
+                    console.error('Failed to save session even after reduction:', e2);
+                    this.view.showAlert('Warning: Unable to save quiz results due to storage limitations.');
+                }
+            }
+        }
+        
         this.currentSessionId = null;
         this.displaySessions();
     }
@@ -1277,5 +1609,350 @@ Number of questions: [YOUR NUMBER HERE]`;
             this.view.clearChat();
             this.view.showAlert('AI configuration cleared.');
         }
+    }
+
+    // Helper function to convert file to base64
+    fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Copy console code to clipboard
+    copyConsoleCode() {
+        const code = document.getElementById('bookmarklet-code').textContent;
+        
+        navigator.clipboard.writeText(code).then(() => {
+            const btn = document.getElementById('copy-code-btn');
+            btn.textContent = '✓ Copied!';
+            btn.style.background = '#2196F3';
+            setTimeout(() => {
+                btn.textContent = '📋 Copy';
+                btn.style.background = '#4CAF50';
+            }, 2000);
+        }).catch(err => {
+            this.view.showAlert('Failed to copy. Please select and copy the code manually.');
+        });
+    }
+
+    // Handle HTML file upload for image extraction
+    async handleHtmlExtraction(file) {
+        const statusDiv = document.getElementById('zip-upload-status');
+        const textarea = document.getElementById('quiz-input');
+        
+        statusDiv.textContent = 'Processing HTML file...';
+        statusDiv.style.color = '#2196F3';
+
+        try {
+            const htmlContent = await file.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+            const images = doc.querySelectorAll('img');
+
+            let base64Count = 0;
+            let externalCount = 0;
+            let localCount = 0;
+            const extractedImages = [];
+
+            images.forEach((img, idx) => {
+                const src = img.getAttribute('src');
+                if (!src) return;
+
+                if (src.startsWith('data:image')) {
+                    // Extract base64 image
+                    const match = src.match(/data:image\/(\w+);base64,(.+)/);
+                    if (match) {
+                        const ext = match[1];
+                        const base64Data = match[2];
+                        extractedImages.push({
+                            filename: `image_${String(idx).padStart(3, '0')}.${ext}`,
+                            data: base64Data,
+                            type: ext
+                        });
+                        base64Count++;
+                    }
+                } else if (src.startsWith('http')) {
+                    externalCount++;
+                } else {
+                    localCount++;
+                }
+            });
+
+            // Store extraction results
+            this.extractionResults = {
+                htmlContent: htmlContent,
+                processedHtml: doc.documentElement.outerHTML,
+                images: extractedImages,
+                stats: { base64Count, externalCount, localCount }
+            };
+
+            // Display results
+            this.displayExtractionResults();
+            statusDiv.textContent = '';
+
+        } catch (error) {
+            console.error('Error processing HTML:', error);
+            statusDiv.textContent = 'Error processing HTML file';
+            statusDiv.style.color = '#f44336';
+        }
+    }
+
+
+
+    // Copy bookmarklet code to clipboard
+    copyBookmarklet() {
+        const bookmarkletCode = `javascript:(async function(){const imgs=document.querySelectorAll('img');let count=0;const status=document.createElement('div');status.style.cssText='position:fixed;top:10px;right:10px;background:#4CAF50;color:white;padding:15px 20px;border-radius:8px;z-index:99999;font-family:sans-serif;box-shadow:0 4px 6px rgba(0,0,0,0.3)';status.textContent='Converting images...';document.body.appendChild(status);for(let img of imgs){if(img.src.startsWith('data:'))continue;try{const r=await fetch(img.src);const b=await r.blob();const d=await new Promise(res=>{const rd=new FileReader();rd.onloadend=()=>res(rd.result);rd.readAsDataURL(b);});img.src=d;count++;}catch(e){console.error('Failed:',img.src,e);}}status.style.background='#2196F3';status.textContent=\`✓ Converted \${count} images! Now save the page (Ctrl+S)\`;setTimeout(()=>status.remove(),5000);})();`;
+        
+        navigator.clipboard.writeText(bookmarkletCode).then(() => {
+            this.view.showAlert('Bookmarklet code copied! Paste it as the URL of a new bookmark.');
+        }).catch(err => {
+            this.view.showAlert('Failed to copy. Please drag the bookmarklet link to your bookmarks bar instead.');
+        });
+    }
+
+    // Handle HTML file upload for image extraction
+    async handleHtmlExtraction(file) {
+        const statusDiv = document.getElementById('zip-upload-status');
+        const textarea = document.getElementById('quiz-input');
+        
+        statusDiv.textContent = 'Processing HTML file...';
+        statusDiv.style.color = '#2196F3';
+
+        try {
+            const htmlContent = await file.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+            const images = doc.querySelectorAll('img');
+
+            let base64Count = 0;
+            let externalCount = 0;
+
+            images.forEach((img) => {
+                const src = img.getAttribute('src');
+                if (!src) return;
+
+                if (src.startsWith('data:image')) {
+                    base64Count++;
+                } else if (src.startsWith('http')) {
+                    externalCount++;
+                }
+            });
+
+            // Load HTML directly into textarea
+            textarea.value = htmlContent;
+
+            // Display results
+            const resultsDiv = document.getElementById('extraction-results');
+            const statsDiv = document.getElementById('extraction-stats');
+            
+            let statsHtml = '';
+            
+            if (base64Count > 0) {
+                statsHtml += `<div class="stat-line success">✓ ${base64Count} embedded image${base64Count > 1 ? 's' : ''} found</div>`;
+            }
+            
+            if (externalCount > 0) {
+                statsHtml += `<div class="stat-line warning">⚠️ ${externalCount} external URL${externalCount > 1 ? 's' : ''} detected - may not display correctly</div>`;
+                statsHtml += `<div class="stat-line warning">→ Run the console code first to convert them!</div>`;
+            }
+
+            if (base64Count === 0 && externalCount === 0) {
+                statsHtml = '<div class="stat-line">ℹ️ No images detected in HTML</div>';
+            }
+
+            statsDiv.innerHTML = statsHtml;
+            resultsDiv.classList.remove('hidden');
+            
+            statusDiv.textContent = '';
+            
+            // Scroll to textarea
+            setTimeout(() => {
+                textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+
+        } catch (error) {
+            console.error('Error processing HTML:', error);
+            statusDiv.textContent = 'Error processing HTML file';
+            statusDiv.style.color = '#f44336';
+        }
+    }
+
+    // Display extraction results
+    displayExtractionResults() {
+        const resultsDiv = document.getElementById('extraction-results');
+        const statsDiv = document.getElementById('extraction-stats');
+        const { base64Count, externalCount, localCount } = this.extractionResults.stats;
+
+        let statsHtml = '';
+        
+        if (base64Count > 0) {
+            statsHtml += `<div class="stat-line success">✓ ${base64Count} base64 image${base64Count > 1 ? 's' : ''} extracted</div>`;
+        }
+        
+        if (externalCount > 0) {
+            statsHtml += `<div class="stat-line warning">⚠️ ${externalCount} external URL${externalCount > 1 ? 's' : ''} found - Run bookmarklet first!</div>`;
+        }
+        
+        if (localCount > 0) {
+            statsHtml += `<div class="stat-line">📁 ${localCount} local reference${localCount > 1 ? 's' : ''} found</div>`;
+        }
+
+        if (base64Count === 0 && externalCount === 0 && localCount === 0) {
+            statsHtml = '<div class="stat-line error">❌ No images found in HTML</div>';
+        }
+
+        statsDiv.innerHTML = statsHtml;
+        resultsDiv.classList.remove('hidden');
+    }
+
+    // Extract quiz HTML from URL and auto-fill textarea
+    async extractFromMoodle() {
+        const urlInput = document.getElementById('moodle-url');
+        const statusDiv = document.getElementById('extraction-status');
+
+        const quizUrl = urlInput.value.trim();
+
+        // Validate inputs
+        if (!quizUrl) {
+            this.view.showAlert('Please enter a quiz URL');
+            return;
+        }
+
+        // Validate URL format
+        try {
+            new URL(quizUrl);
+        } catch (e) {
+            this.view.showAlert('Please enter a valid URL (must start with http:// or https://)');
+            return;
+        }
+
+        // Provide simple save instructions
+        const saveInstructions = `
+(async function() {
+    const status = document.createElement('div');
+    status.style.cssText = 'position:fixed;top:10px;right:10px;background:#4CAF50;color:white;padding:15px 20px;border-radius:8px;z-index:99999;font-family:sans-serif;box-shadow:0 4px 6px rgba(0,0,0,0.3);max-width:350px;';
+    status.innerHTML = '<strong>📦 Starting extraction...</strong>';
+    document.body.appendChild(status);
+    
+    try {
+        status.innerHTML = '<strong>🖼️ Converting images...</strong><br>Please wait...';
+        
+        // Convert images to base64
+        const imgs = document.querySelectorAll('img');
+        let count = 0;
+        for (let img of imgs) {
+            if (!img.src.startsWith('data:')) {
+                try {
+                    const r = await fetch(img.src, {credentials: 'include'});
+                    const b = await r.blob();
+                    const d = await new Promise(res => {
+                        const rd = new FileReader();
+                        rd.onloadend = () => res(rd.result);
+                        rd.readAsDataURL(b);
+                    });
+                    img.src = d;
+                    count++;
+                    if (count % 5 === 0) status.innerHTML = \`<strong>🖼️ Converting...</strong><br>\${count} images done\`;
+                } catch(e) { console.error('Failed to convert image:', e); }
+            }
+        }
+        
+        status.innerHTML = '<strong>📥 Downloading...</strong>';
+        
+        // Get the complete HTML
+        const html = document.documentElement.outerHTML;
+        
+        // Download as file
+        const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'moodle-quiz-complete.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        status.style.background = '#2196F3';
+        status.innerHTML = \`<strong>✅ Success!</strong><br>Downloaded HTML with \${count} images<br><small>Upload it to your quiz app!</small>\`;
+        setTimeout(() => status.remove(), 8000);
+    } catch(e) {
+        status.style.background = '#f44336';
+        status.innerHTML = '<strong>❌ Error!</strong><br>' + e.message;
+        console.error(e);
+        setTimeout(() => status.remove(), 10000);
+    }
+})();
+`;
+
+        // Show instructions
+        statusDiv.innerHTML = `
+            <div style="padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; margin-bottom: 15px;">
+                <h3 style="margin: 0 0 15px 0; font-size: 18px;">� Copy & Paste This Code</h3>
+                
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                    <strong style="font-size: 16px;">✨ 4 Simple Steps:</strong>
+                    <ol style="margin: 10px 0 0 20px; line-height: 2;">
+                        <li>Click <strong>"🌐 Open Quiz Page"</strong> button below</li>
+                        <li>In the new window, press <code style="background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 3px;">F12</code> to open Console</li>
+                        <li>Press <code style="background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 3px;">Ctrl+V</code> to paste (code already copied!)</li>
+                        <li>Press <code style="background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 3px;">Enter</code> → Quiz downloads automatically!</li>
+                    </ol>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button id="open-quiz-url" class="btn-submit" style="flex: 1; background: white; color: #667eea; font-weight: bold;">
+                        🌐 Open Quiz Page
+                    </button>
+                    <button id="copy-console-code" class="btn-submit" style="flex: 1; background: rgba(255,255,255,0.2);">
+                        📋 Copy Code Again
+                    </button>
+                </div>
+
+                <details style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 6px; cursor: pointer;">
+                    <summary style="font-weight: bold; font-size: 14px; cursor: pointer;">👁️ View Extraction Code</summary>
+                    <div style="margin-top: 10px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; font-family: monospace; font-size: 11px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;">` + 
+                    saveInstructions.replace(/</g, '&lt;').replace(/>/g, '&gt;') + 
+                    `</div>
+                </details>
+
+                <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.15); border-radius: 4px; font-size: 13px;">
+                    <strong>📥 After download:</strong> Upload the HTML file using "📄 Upload HTML File" button above, then click "Parse and Start"
+                </div>
+            </div>
+        `;
+
+        // Auto-copy to clipboard
+        try {
+            await navigator.clipboard.writeText(saveInstructions);
+        } catch (err) {
+            console.log('Clipboard access denied, user can click copy button');
+        }
+
+        // Add event listeners
+        setTimeout(() => {
+            const openBtn = document.getElementById('open-quiz-url');
+            if (openBtn) {
+                openBtn.addEventListener('click', () => {
+                    window.open(quizUrl, '_blank', 'width=1200,height=800');
+                    this.view.showAlert('✅ Quiz page opened! Press F12 → Paste (Ctrl+V) → Enter');
+                });
+            }
+
+            const copyBtn = document.getElementById('copy-console-code');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', async () => {
+                    try {
+                        await navigator.clipboard.writeText(saveInstructions);
+                        this.view.showAlert('✅ Code copied! Paste in Console (F12) and press Enter.');
+                    } catch (err) {
+                        this.view.showAlert('❌ Copy failed. Please copy from the code view above.');
+                    }
+                });
+            }
+        }, 100);
     }
 }

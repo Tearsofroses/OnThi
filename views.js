@@ -208,8 +208,18 @@ class QuizView {
 
     // Display a single question
     displayQuestion(question, questionIndex, totalQuestions, userAnswer) {
+        // Check if question text contains HTML (images, etc)
+        const isHTML = question.text.includes('<') && question.text.includes('>');
+        
         const questionHTML = `${question.number}. ${question.lo ? question.lo + ' ' : ''}${question.text}`;
-        this.questionText.innerHTML = this.renderMath(questionHTML);
+        
+        if (isHTML) {
+            // Render as HTML to preserve images and formatting
+            this.questionText.innerHTML = questionHTML;
+        } else {
+            // Render with math support for plain text
+            this.questionText.innerHTML = this.renderMath(questionHTML);
+        }
         
         // Display options
         this.optionsContainer.innerHTML = '';
@@ -222,9 +232,13 @@ class QuizView {
                 optionDiv.classList.add('selected');
             }
             
+            // Check if option text contains HTML
+            const optionIsHTML = option.text.includes('<') && option.text.includes('>');
+            const optionTextContent = optionIsHTML ? option.text : this.renderMath(option.text);
+            
             optionDiv.innerHTML = `
                 <span class="option-label">${option.label}.</span>
-                <span class="option-text">${this.renderMath(option.text)}</span>
+                <span class="option-text">${optionTextContent}</span>
             `;
             
             this.optionsContainer.appendChild(optionDiv);

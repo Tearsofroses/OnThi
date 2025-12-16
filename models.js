@@ -38,6 +38,11 @@ class Quiz {
     static parseFromText(text) {
         const format = this.detectFormat(text);
         
+        // Check if content is HTML with images
+        if (text.includes('<img') || text.includes('<!DOCTYPE') || text.includes('<html')) {
+            return this.parseHTMLFormat(text);
+        }
+        
         if (format === 'moodle') {
             return this.parseMoodleFormat(text);
         }
@@ -191,6 +196,155 @@ class Quiz {
         return this.parseMoodleText(text);
     }
 
+    static parseHTMLFormat(html) {
+        // First try Moodle HTML format
+        if (html.includes('que multichoice') || html.includes('qtext') || html.includes('que.')) {
+            return this.parseMoodleHTML(html);
+        }
+        
+        // Generic HTML parsing - better fallback
+        const questions = [];
+        const answers = {};
+        
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Try to find questions - look for common patterns
+        let questionElements = doc.querySelectorAll('.que, .question, [class*="question"], [class*="que"]');
+        
+        if (questionElements.length === 0) {
+            // Last resort: try to parse by looking for radio buttons
+            const radioButtons = doc.querySelectorAll('input[type="radio"]');
+            
+            if (radioButtons.length > 0) {
+                // Group by name attribute (each question should have unique name)
+                const questionGroups = {};
+                
+                radioButtons.forEach(radio => {
+                    const name = radio.name || 'default';
+                    if (!questionGroups[name]) {
+                        questionGroups[name] = [];
+                    }
+                    questionGroups[name].push(radio);
+                });
+                
+                // Process each group as a question
+                let questionNumber = 1;
+                Object.keys(questionGroups).forEach(name => {
+                    const radios = questionGroups[name];
+                    
+                    // Try to find question text (look upward in DOM)
+                    let questionText = '';
+                    const firstRadio = radios[0];
+                    let parent = firstRadio.closest('div, fieldset, section');
+                    
+                    if (parent) {
+                        // Get all text before first radio
+                        const clone = parent.cloneNode(true);
+                        const cloneRadios = clone.querySelectorAll('input[type="radio"]');
+                        cloneRadios.forEach(r => r.remove());
+                        questionText = clone.innerHTML.trim();
+                    }
+                    
+                    // Extract options
+                    const options = [];
+                    radios.forEach((radio, idx) => {
+                        const label = String.fromCharCode(65 + idx);
+                        
+                        // Try to find label text
+                        let optionText = '';
+                        const labelEl = radio.closest('label') || 
+                                       doc.querySelector(`label[for="${radio.id}"]`);
+                        
+                        if (labelEl) {
+                            const clone = labelEl.cloneNode(true);
+                            const input = clone.querySelector('input');
+                            if (input) input.remove();
+                            optionText = clone.innerHTML.trim();
+                        } else if (radio.nextSibling) {
+                            optionText = radio.nextSibling.textContent || radio.nextSibling.innerHTML;
+                        }
+                        
+                        if (optionText) {
+                            options.push({ label, text: optionText });
+                        }
+                        
+                        if (radio.checked) {
+                            answers[questionNumber] = label;
+                        }
+                    });
+                    
+                    if (options.length > 0) {
+                        questions.push({
+                            number: questionNumber++,
+                            lo: '',
+                            text: questionText || 'Question text not found',
+                            options
+                        });
+                    }
+                });
+            } else {
+                // No structure found - return whole content as one question
+                const bodyHTML = doc.body.innerHTML.trim();
+                if (bodyHTML) {
+                    questions.push({
+                        number: 1,
+                        lo: '',
+                        text: bodyHTML,
+                        options: []
+                    });
+                }
+            }
+        } else {
+            // Found question elements
+            let questionNumber = 1;
+            questionElements.forEach((queElement) => {
+                // Get question text with images preserved
+                const textElement = queElement.querySelector('.qtext, .question-text, [class*="text"]');
+                let questionText = textElement ? textElement.innerHTML : queElement.innerHTML;
+                
+                // Look for options
+                const options = [];
+                const radioButtons = queElement.querySelectorAll('input[type="radio"]');
+                
+                radioButtons.forEach((radio, idx) => {
+                    const label = String.fromCharCode(65 + idx);
+                    
+                    // Find associated label
+                    let optionText = '';
+                    const labelEl = radio.closest('label') || 
+                                   queElement.querySelector(`label[for="${radio.id}"]`);
+                    
+                    if (labelEl) {
+                        const clone = labelEl.cloneNode(true);
+                        const input = clone.querySelector('input');
+                        if (input) input.remove();
+                        optionText = clone.innerHTML.trim();
+                    }
+                    
+                    if (optionText) {
+                        options.push({ label, text: optionText });
+                    }
+                    
+                    if (radio.checked) {
+                        answers[questionNumber] = label;
+                    }
+                });
+                
+                if (options.length > 0) {
+                    questions.push({
+                        number: questionNumber++,
+                        lo: '',
+                        text: questionText,
+                        options
+                    });
+                }
+            });
+        }
+        
+        return { questions, answers };
+    }
+
     static parseMoodleHTML(html) {
         const questions = [];
         const answers = {};
@@ -199,54 +353,317 @@ class Quiz {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         
-        // Find all question containers
-        const questionElements = doc.querySelectorAll('.que.multichoice');
+        // Find all question containers - try multiple selectors
+        let questionElements = doc.querySelectorAll('.que.multichoice, .que.truefalse, .que');
+        
+        if (questionElements.length === 0) {
+            // Fallback: try to find any div with question-like structure
+            questionElements = doc.querySelectorAll('div[class*="question"]');
+        }
+        
+        let questionCounter = 1;
         
         questionElements.forEach((queElement) => {
             // Extract question number
-            const qnoElement = queElement.querySelector('.qno');
-            if (!qnoElement) return;
+            let questionNumber = questionCounter;
+            const qnoElement = queElement.querySelector('.qno, .qnumber, [class*="number"]');
+            if (qnoElement) {
+                const parsed = parseInt(qnoElement.textContent.trim().replace(/[^\d]/g, ''));
+                if (!isNaN(parsed)) {
+                    questionNumber = parsed;
+                }
+            }
             
-            const questionNumber = parseInt(qnoElement.textContent.trim());
-            
-            // Extract question text
-            const qtextElement = queElement.querySelector('.qtext');
+            // Extract question text (preserve HTML for images)
+            const qtextElement = queElement.querySelector('.qtext, .questiontext, [class*="qtext"]');
             if (!qtextElement) return;
             
-            const questionText = qtextElement.textContent.trim();
+            // Use innerHTML to preserve images and formatting
+            let questionText = qtextElement.innerHTML.trim();
             
-            // Extract options
+            // Clean up some Moodle-specific elements but keep images
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = questionText;
+            
+            // Remove "Question text" label if present
+            const labelElements = tempDiv.querySelectorAll('.accesshide, .sr-only');
+            labelElements.forEach(el => el.remove());
+            
+            questionText = tempDiv.innerHTML.trim();
+            
+            // Get the entire question HTML text content for duplicate detection
+            const fullQuestionText = queElement.textContent.toLowerCase().trim();
+            
+            // Extract options (preserve HTML for images in options)
             const options = [];
-            const answerLabels = queElement.querySelectorAll('[data-region="answer-label"]');
             
-            answerLabels.forEach((labelElement) => {
-                const answerNumber = labelElement.querySelector('.answernumber');
-                const answerText = labelElement.querySelector('.flex-fill');
+            // Try multiple selectors for answer options
+            let answerElements = queElement.querySelectorAll('[data-region="answer-label"]');
+            
+            if (answerElements.length === 0) {
+                // Alternative: look for answer divs
+                answerElements = queElement.querySelectorAll('.answer');
+            }
+            
+            if (answerElements.length === 0) {
+                // Last resort: find all radio buttons and get their parent containers
+                const radioButtons = queElement.querySelectorAll('input[type="radio"]');
+                const tempAnswers = [];
                 
-                if (answerNumber && answerText) {
-                    const label = answerNumber.textContent.trim().replace('.', '').toUpperCase();
-                    const text = answerText.textContent.trim();
-                    
-                    options.push({
-                        label: label,
-                        text: text
-                    });
-                    
-                    // Check if this option is checked (correct answer)
-                    const radioInput = labelElement.parentElement.querySelector('input[type="radio"]');
-                    if (radioInput && radioInput.checked) {
-                        answers[questionNumber] = label;
+                radioButtons.forEach(radio => {
+                    // Find the closest div/label that contains this radio
+                    let container = radio.closest('.r0, .r1, label, div[class*="answer"]') || 
+                                   radio.parentElement;
+                    if (container) {
+                        tempAnswers.push(container);
                     }
+                });
+                
+                answerElements = tempAnswers;
+            }
+            
+            // First pass: collect all answer texts
+            const answerData = []; // Store {label, text, plainText, element} for processing
+            
+            answerElements.forEach((answerElement, idx) => {
+                // Try to find answer number/label
+                let label = String.fromCharCode(65 + idx); // Default: A, B, C, D...
+                
+                const answerNumber = answerElement.querySelector('.answernumber, [class*="answernumber"]');
+                if (answerNumber) {
+                    const labelText = answerNumber.textContent.trim().replace('.', '').replace(')', '').toUpperCase();
+                    if (labelText.match(/^[A-Z]$/)) {
+                        label = labelText;
+                    }
+                }
+                
+                // Get answer text with HTML (images)
+                let answerText = '';
+                let plainText = '';
+                const answerTextElement = answerElement.querySelector('.flex-fill, p, div:not(.answernumber)');
+                
+                if (answerTextElement) {
+                    answerText = answerTextElement.innerHTML.trim();
+                    // Use textContent to get decoded text (HTML entities like &gt; become >)
+                    plainText = answerTextElement.textContent.trim().toLowerCase();
+                } else {
+                    // Fallback: get all content except the answer number
+                    const clone = answerElement.cloneNode(true);
+                    const numberEl = clone.querySelector('.answernumber, [class*="answernumber"]');
+                    if (numberEl) numberEl.remove();
+                    
+                    // Also remove radio input
+                    const radioEl = clone.querySelector('input[type="radio"]');
+                    if (radioEl) radioEl.remove();
+                    
+                    answerText = clone.innerHTML.trim();
+                    // Use textContent for proper HTML entity decoding
+                    plainText = clone.textContent.trim().toLowerCase();
+                }
+                
+                // Extract image src if this answer contains an image
+                let imageSrc = null;
+                const imgMatch = answerText.match(/<img[^>]+src=["']([^"']+)["']/i);
+                if (imgMatch) {
+                    imageSrc = imgMatch[1];
+                    // Keep full base64 string for accurate comparison
+                    // Similar images may have identical prefixes but differ in the full data
+                }
+                
+                // Store for processing
+                answerData.push({
+                    label, 
+                    text: answerText, 
+                    plainText: plainText,
+                    imageSrc: imageSrc,
+                    element: answerElement
+                });
+            });
+            
+            // Extract correct answer from feedback section
+            // Look for "The correct answer is:" in the rightanswer div
+            let correctLabel = null;
+            const rightAnswerElement = queElement.querySelector('.rightanswer');
+            
+            if (rightAnswerElement) {
+                // Get the text content after "The correct answer is:"
+                // textContent automatically decodes HTML entities (&gt; becomes >, &amp; becomes &, etc.)
+                const rightAnswerText = rightAnswerElement.textContent || '';
+                const correctAnswerMatch = rightAnswerText.match(/The correct answer is:\s*(.+)/is);
+                
+                if (correctAnswerMatch) {
+                    // Normalize whitespace and lowercase for comparison
+                    const correctAnswerText = correctAnswerMatch[1]
+                        .trim()
+                        .replace(/\s+/g, ' ')  // Normalize multiple spaces to single space
+                        .replace(/[\r\n\t]/g, ' ')  // Remove line breaks and tabs
+                        .toLowerCase();
+                    
+                    // Also try to get HTML content for image matching
+                    const rightAnswerHTML = rightAnswerElement.innerHTML || '';
+                    
+                    console.log('Question ' + questionNumber + ' - Looking for correct answer:', correctAnswerText.substring(0, 150));
+                    
+                    // Find which answer option matches this correct answer
+                    let bestMatch = null;
+                    let bestMatchScore = 0;
+                    
+                    for (const {label, plainText, imageSrc, text} of answerData) {
+                        // Normalize the answer text for comparison
+                        const normalizedPlainText = plainText
+                            .replace(/\s+/g, ' ')
+                            .replace(/[\r\n\t]/g, ' ')
+                            .trim();
+                        
+                        console.log('  Option ' + label + ':', normalizedPlainText.substring(0, 150));
+                        
+                        let matchScore = 0;
+                        
+                        // Try exact match first (best match) - must be identical
+                        if (normalizedPlainText && correctAnswerText === normalizedPlainText) {
+                            matchScore = 10000;  // Highest score for exact match
+                            console.log('    -> EXACT MATCH');
+                        }
+                        // Check if option text contains the correct answer but has extra content
+                        // This should score lower than exact match
+                        else if (normalizedPlainText && correctAnswerText.length > 20 &&
+                                 normalizedPlainText.includes(correctAnswerText)) {
+                            // Penalize for extra content - the more extra, the lower the score
+                            const extraLength = normalizedPlainText.length - correctAnswerText.length;
+                            matchScore = 500 - (extraLength * 2);  // Penalize for extra text
+                            console.log('    -> Contains correct answer + extra (' + extraLength + ' extra chars), score:', matchScore);
+                        }
+                        // Check if the correct answer contains this option's text (correct answer is longer)
+                        else if (normalizedPlainText && normalizedPlainText.length > 10 && 
+                                 correctAnswerText.includes(normalizedPlainText)) {
+                            matchScore = normalizedPlainText.length + 100;  // Score based on match length
+                            console.log('    -> Partial match (option in correct answer), score:', matchScore);
+                        }
+                        // Try partial word match - calculate similarity
+                        else if (normalizedPlainText && normalizedPlainText.length > 15) {
+                            // Count matching words
+                            const correctWords = correctAnswerText.split(' ').filter(w => w.length > 3);
+                            const optionWords = normalizedPlainText.split(' ').filter(w => w.length > 3);
+                            let matchingWords = 0;
+                            
+                            for (const word of optionWords) {
+                                if (correctWords.includes(word)) {
+                                    matchingWords++;
+                                }
+                            }
+                            
+                            // If more than 60% of significant words match
+                            if (matchingWords > 0 && matchingWords / optionWords.length > 0.6) {
+                                matchScore = matchingWords * 3;
+                                console.log('    -> Fuzzy match (' + matchingWords + ' words), score:', matchScore);
+                            }
+                        }
+                        // Check for image matches
+                        if (imageSrc && rightAnswerHTML.includes(imageSrc)) {
+                            matchScore = 5000;  // High score for image match
+                            console.log('    -> IMAGE MATCH');
+                        }
+                        
+                        if (matchScore > bestMatchScore) {
+                            bestMatchScore = matchScore;
+                            bestMatch = label;
+                        }
+                    }
+                    
+                    if (bestMatch && bestMatchScore > 0) {
+                        correctLabel = bestMatch;
+                        answers[questionNumber] = bestMatch;
+                        console.log('  -> Matched answer:', bestMatch, 'with score:', bestMatchScore);
+                    } else {
+                        console.log('  -> No match found');
+                    }
+                }
+            }
+            
+            // Fallback: Check for duplicate text/images if rightanswer section not found
+            if (!correctLabel) {
+                for (const {label, plainText, imageSrc} of answerData) {
+                    let occurrences = 0;
+                    
+                    // Check for duplicate images first
+                    if (imageSrc) {
+                        const fullHTML = queElement.innerHTML;
+                        let pos = 0;
+                        while ((pos = fullHTML.indexOf(imageSrc, pos)) !== -1) {
+                            occurrences++;
+                            pos += imageSrc.length;
+                        }
+                    } 
+                    // Check for duplicate text
+                    else if (plainText && plainText.length > 5) {
+                        const lowerHTML = fullQuestionText.toLowerCase();
+                        let pos = 0;
+                        while ((pos = lowerHTML.indexOf(plainText, pos)) !== -1) {
+                            occurrences++;
+                            pos += plainText.length;
+                        }
+                    }
+                    
+                    // If this answer appears 2+ times, it's likely correct
+                    if (occurrences >= 2) {
+                        correctLabel = label;
+                        answers[questionNumber] = label;
+                        break;
+                    }
+                }
+            }
+            
+            // Build options and apply fallback detection if needed
+            answerData.forEach(({label, text, element}) => {
+                options.push({
+                    label: label,
+                    text: text || `Option ${label}`
+                });
+                
+                // If we already found the correct answer via duplicate detection, skip fallback for this question
+                if (correctLabel) return;
+                
+                // Fallback: Check using attribute/class-based methods
+                const radioInput = element.querySelector('input[type="radio"]');
+                const isChecked = radioInput && (
+                    radioInput.checked || 
+                    radioInput.hasAttribute('checked') || 
+                    radioInput.getAttribute('checked') === 'checked'
+                );
+                
+                // Check for 'correct' class in multiple locations
+                const hasCorrectClass = element.classList.contains('correct') ||
+                                       element.classList.contains('r1') || // Moodle uses r1 for correct answers
+                                       (radioInput && radioInput.parentElement && radioInput.parentElement.classList.contains('correct'));
+                
+                // Also check if any parent container has 'correct' in its class or if there's a correctness indicator
+                const hasCorrectParent = element.querySelector('.correct, .correctness, [class*="correct"]') !== null;
+                
+                if (isChecked || hasCorrectClass || hasCorrectParent) {
+                    answers[questionNumber] = label;
+                    correctLabel = label; // Mark as found to stop checking other options
                 }
             });
             
-            if (questionText && options.length > 0) {
+            // Only add question if it has options OR has content
+            if (questionText && (options.length > 0 || questionText.includes('<img'))) {
+                // If no options found but has images, add placeholder options for now
+                if (options.length === 0) {
+                    options.push(
+                        { label: 'A', text: 'Option A' },
+                        { label: 'B', text: 'Option B' },
+                        { label: 'C', text: 'Option C' },
+                        { label: 'D', text: 'Option D' }
+                    );
+                }
+                
                 questions.push({
                     number: questionNumber,
                     lo: '',
                     text: questionText,
                     options: options
                 });
+                questionCounter++;
             }
         });
         
