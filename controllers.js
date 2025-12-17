@@ -74,6 +74,16 @@ class QuizController {
             this.view.showChatBtn.addEventListener('click', () => this.view.toggleChatSidebar());
         }
         
+        // Navigation board toggle buttons
+        const toggleNavBtn = document.getElementById('toggle-nav-btn');
+        const hideNavBtn = document.getElementById('hide-nav-btn');
+        if (toggleNavBtn) {
+            toggleNavBtn.addEventListener('click', () => this.toggleNavigationBoard());
+        }
+        if (hideNavBtn) {
+            hideNavBtn.addEventListener('click', () => this.toggleNavigationBoard());
+        }
+        
         // Flag button
         const flagCurrentBtn = document.getElementById('flag-current-btn');
         if (flagCurrentBtn) {
@@ -942,6 +952,13 @@ Try Option 1 (ZIP) - it's the easiest!`);
         
         this.updateQuestionNavigation();
         this.saveCurrentSession(); // Save flag state
+    }
+
+    toggleNavigationBoard() {
+        const navBoard = document.getElementById('question-nav-board');
+        if (navBoard) {
+            navBoard.classList.toggle('hidden');
+        }
     }
 
     displayCurrentQuestion() {
