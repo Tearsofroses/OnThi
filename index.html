@@ -188,7 +188,6 @@ D. A hierarchy of objects.</pre>
                 <div class="quiz-header">
                     <button id="return-to-main-btn" class="btn-return" title="Return to Main Page">← Back</button>
                     <button id="show-chat-btn" class="btn-show-chat hidden" title="Show AI Chat">💬 Show AI Helper</button>
-                    <button id="toggle-nav-btn" class="btn-toggle-nav" title="Toggle Question Navigator">📋</button>
                     <div class="progress-bar">
                         <div id="progress" class="progress-fill"></div>
                     </div>
@@ -199,47 +198,46 @@ D. A hierarchy of objects.</pre>
                     </div>
                 </div>
             
-                <div id="question-container">
-                    <h3 id="question-text"></h3>
-                    <div id="options-container" class="options"></div>
-                </div>
+            <div class="quiz-content-with-nav">
+                <div class="quiz-question-area">
+                    <div id="question-container">
+                        <h3 id="question-text"></h3>
+                        <div id="options-container" class="options"></div>
+                    </div>
 
-                <div class="quiz-controls">
-                    <button id="prev-btn" class="btn btn-secondary" disabled>Previous</button>
-                    <button id="next-btn" class="btn btn-primary">Next</button>
-                    <button id="submit-btn" class="btn btn-success hidden">Submit Quiz</button>
+                    <div class="quiz-controls">
+                        <button id="prev-btn" class="btn btn-secondary" disabled>Previous</button>
+                        <button id="next-btn" class="btn btn-primary">Next</button>
+                        <button id="submit-btn" class="btn btn-success hidden">Submit Quiz</button>
+                    </div>
                 </div>
-            </div>
-            
-            <!-- Question Navigation Board (moved outside main content) -->
-            <div class="question-nav-board" id="question-nav-board">
-                <div class="nav-board-header">
-                    <h4>Question Navigator</h4>
-                    <div class="nav-board-actions">
+                
+                <!-- Question Navigation Board -->
+                <div class="question-nav-board">
+                    <div class="nav-board-header">
+                        <h4>Question Navigator</h4>
                         <button id="flag-current-btn" class="btn-flag" title="Flag/Unflag current question">
                             <span class="flag-icon">🚩</span>
                         </button>
-                        <button id="hide-nav-btn" class="btn-hide-nav" title="Hide Navigator">✕</button>
+                    </div>
+                    <div class="nav-board-legend">
+                        <div class="legend-item">
+                            <span class="legend-box legend-answered"></span>
+                            <span>Answered</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-box legend-flagged"></span>
+                            <span>Flagged</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-box legend-current"></span>
+                            <span>Current</span>
+                        </div>
+                    </div>
+                    <div id="question-nav-grid" class="question-nav-grid">
+                        <!-- Question buttons will be dynamically generated here -->
                     </div>
                 </div>
-                <div class="nav-board-legend">
-                    <div class="legend-item">
-                        <span class="legend-box legend-answered"></span>
-                        <span>Answered</span>
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-box legend-flagged"></span>
-                        <span>Flagged</span>
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-box legend-current"></span>
-                        <span>Current</span>
-                    </div>
-                </div>
-                <div id="question-nav-grid" class="question-nav-grid">
-                    <!-- Question buttons will be dynamically generated here -->
-                </div>
-            </div>
             </div>
             </div>
 
