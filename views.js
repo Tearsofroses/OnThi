@@ -332,26 +332,44 @@ class QuizView {
             reviewItem.className = `review-item ${isCorrect ? 'correct' : 'incorrect'}`;
             reviewItem.dataset.questionNumber = question.number;
             
-            const correctOption = question.options.find(opt => opt.label === correctAnswer);
-            const userOption = question.options.find(opt => opt.label === userAnswer);
-            
             const questionHTML = `${question.number}. ${question.lo ? question.lo + ' ' : ''}${question.text}`;
-            const userAnswerHTML = userOption ? '. ' + userOption.text : '';
-            const correctAnswerHTML = correctOption ? '. ' + correctOption.text : '';
+            
+            // Build all options HTML
+            let allOptionsHTML = '<div class="review-all-options">';
+            question.options.forEach(option => {
+                const isUserAnswer = option.label === userAnswer;
+                const isCorrectAnswer = option.label === correctAnswer;
+                
+                let optionClass = 'review-option';
+                let icon = '';
+                
+                if (isCorrectAnswer) {
+                    optionClass += ' correct-option';
+                    icon = '✓ ';
+                } else if (isUserAnswer && !isCorrect) {
+                    optionClass += ' wrong-option';
+                    icon = '✗ ';
+                }
+                
+                allOptionsHTML += `
+                    <div class="${optionClass}">
+                        <span class="option-label">${icon}${option.label}.</span>
+                        <span class="option-text">${this.renderMath(option.text)}</span>
+                    </div>
+                `;
+            });
+            allOptionsHTML += '</div>';
             
             reviewItem.innerHTML = `
                 <div class="review-question">
                     <strong>${this.renderMath(questionHTML)}</strong>
                 </div>
-                <div class="review-answer user">
-                    <strong>Your answer:</strong> ${userAnswer}${this.renderMath(userAnswerHTML)}
+                ${allOptionsHTML}
+                <div class="review-summary">
+                    <span class="your-answer">Your answer: <strong>${userAnswer}</strong></span>
+                    ${!isCorrect ? `<span class="correct-answer-label">Correct answer: <strong>${correctAnswer}</strong></span>` : '<span style="color: #28a745; font-weight: 600;">✓ Correct!</span>'}
                 </div>
-                ${!isCorrect ? `
-                    <div class="review-answer correct-ans">
-                        <strong>Correct answer:</strong> ${correctAnswer}${this.renderMath(correctAnswerHTML)}
-                    </div>
-                    <div style="color: #667eea; font-size: 0.9em; margin-top: 10px; font-style: italic;">💬 Click to get AI explanation</div>
-                ` : '<div style="color: #28a745; font-weight: 600; margin-top: 10px;">✓ Correct!</div>'}
+                ${!isCorrect ? `<div style="color: #667eea; font-size: 0.9em; margin-top: 10px; font-style: italic;">💬 Click to get AI explanation</div>` : ''}
             `;
             
             // Add click handler for incorrect answers
