@@ -398,11 +398,23 @@ class Quiz {
             const options = [];
             
             // Try multiple selectors for answer options
-            let answerElements = queElement.querySelectorAll('[data-region="answer-label"]');
+            // We need to get the parent container that has the "correct" class, not just the label
+            let answerElements = [];
+            const answerLabelElements = queElement.querySelectorAll('[data-region="answer-label"]');
+            
+            if (answerLabelElements.length > 0) {
+                // Get parent containers (which have the "correct" class)
+                answerLabelElements.forEach(label => {
+                    const container = label.closest('.r0, .r1, .answer, div[class*="answer"]') || label.parentElement;
+                    if (container) {
+                        answerElements.push(container);
+                    }
+                });
+            }
             
             if (answerElements.length === 0) {
-                // Alternative: look for answer divs
-                answerElements = queElement.querySelectorAll('.answer');
+                // Alternative: look for answer divs directly
+                answerElements = queElement.querySelectorAll('.answer, .r0, .r1');
             }
             
             if (answerElements.length === 0) {
@@ -423,7 +435,7 @@ class Quiz {
             }
             
             // First pass: collect all answer texts
-            const answerData = []; // Store {label, text, plainText, element} for processing
+            const answerData = []; // Store {label, text, plainText, element, isCorrect} for processing
             
             answerElements.forEach((answerElement, idx) => {
                 // Try to find answer number/label
@@ -436,6 +448,9 @@ class Quiz {
                         label = labelText;
                     }
                 }
+                
+                // Check if this answer has the "correct" class (e.g., "r0 correct" or "r1 correct")
+                const isCorrect = answerElement.classList.contains('correct');
                 
                 // Get answer text with HTML (images)
                 let answerText = '';
@@ -476,20 +491,31 @@ class Quiz {
                     text: answerText, 
                     plainText: plainText,
                     imageSrc: imageSrc,
-                    element: answerElement
+                    element: answerElement,
+                    isCorrect: isCorrect  // Store the "correct" class status
                 });
             });
             
-            // Extract correct answer from feedback section
-            // Look for "The correct answer is:" in the rightanswer div
+            // Extract correct answer - Method 1: Check for "correct" class in answer elements
             let correctLabel = null;
-            const rightAnswerElement = queElement.querySelector('.rightanswer');
             
-            if (rightAnswerElement) {
-                // Get the text content after "The correct answer is:"
-                // textContent automatically decodes HTML entities (&gt; becomes >, &amp; becomes &, etc.)
-                const rightAnswerText = rightAnswerElement.textContent || '';
-                const correctAnswerMatch = rightAnswerText.match(/The correct answer is:\s*(.+)/is);
+            // First, try to find answer with "correct" class (most reliable method)
+            const correctAnswer = answerData.find(answer => answer.isCorrect);
+            if (correctAnswer) {
+                correctLabel = correctAnswer.label;
+                answers[questionNumber] = correctLabel;  // Store the correct answer immediately
+                console.log('Question ' + questionNumber + ' - Found correct answer via "correct" class: ' + correctLabel);
+            }
+            
+            // Method 2: If no "correct" class found, look for "The correct answer is:" in the rightanswer div
+            if (!correctLabel) {
+                const rightAnswerElement = queElement.querySelector('.rightanswer');
+                
+                if (rightAnswerElement) {
+                    // Get the text content after "The correct answer is:"
+                    // textContent automatically decodes HTML entities (&gt; becomes >, &amp; becomes &, etc.)
+                    const rightAnswerText = rightAnswerElement.textContent || '';
+                    const correctAnswerMatch = rightAnswerText.match(/The correct answer is:\s*(.+)/is);
                 
                 if (correctAnswerMatch) {
                     // Normalize whitespace and lowercase for comparison
@@ -579,9 +605,11 @@ class Quiz {
                     }
                 }
             }
+            }
             
-            // Fallback: Check for duplicate text/images if rightanswer section not found
+            // Fallback Method 3: Check for duplicate text/images if no correct answer found yet
             if (!correctLabel) {
+                console.log('Question ' + questionNumber + ' - Trying fallback: checking for duplicate text/images');
                 for (const {label, plainText, imageSrc} of answerData) {
                     let occurrences = 0;
                     
@@ -1000,22 +1028,42 @@ class StorageModel {
                 console.log('Authenticated anonymously');
             }
             
+            // Prepare quiz data to match Firebase validation rules
             const quizData = {
-                title: quiz.title,
-                content: quiz.content,
-                questions: quiz.questions,
-                answers: quiz.answers,
+                title: quiz.title || 'Untitled Quiz',
+                content: quiz.content || '',
+                questions: quiz.questions || [],
+                answers: quiz.answers || {},
                 timestamp: new Date().toISOString(),
-                course: quiz.course || '',
-                questionCount: quiz.questions.length,
-                publishedBy: this.firebaseAuth.currentUser.uid
+                course: quiz.course || 'General',
+                questionCount: (quiz.questions || []).length
             };
+            
+            // Validate data before sending
+            if (!quizData.title || quizData.title.length === 0) {
+                throw new Error('Quiz must have a title');
+            }
+            if (quizData.title.length >= 200) {
+                throw new Error('Quiz title is too long (max 200 characters)');
+            }
+            if (typeof quizData.content !== 'string') {
+                throw new Error('Quiz content must be a string');
+            }
+            if (typeof quizData.questionCount !== 'number') {
+                throw new Error('Invalid question count');
+            }
             
             const newQuizRef = await this.firebaseDb.ref('sharedQuizzes').push(quizData);
             console.log('Quiz published to community:', newQuizRef.key);
             return newQuizRef.key;
         } catch (error) {
             console.error('Error publishing quiz:', error);
+            
+            // Provide more helpful error messages
+            if (error.code === 'PERMISSION_DENIED') {
+                throw new Error('Permission denied. Please make sure:\n1. Anonymous authentication is enabled in Firebase\n2. You have internet connection\n3. Firebase rules allow writing to sharedQuizzes');
+            }
+            
             throw new Error('Failed to publish quiz to community: ' + error.message);
         }
     }

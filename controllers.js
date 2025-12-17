@@ -139,18 +139,40 @@ class QuizController {
         const file = event.target.files[0];
         if (!file) return;
 
+        // Validate file type
+        if (!file.name.match(/\.(html|htm)$/i)) {
+            this.view.showAlert('❌ Please upload an HTML file (.html or .htm)');
+            event.target.value = '';
+            return;
+        }
+
+        // Check file size (max 50MB)
+        const maxSize = 50 * 1024 * 1024; // 50MB
+        if (file.size > maxSize) {
+            this.view.showAlert('❌ File is too large. Maximum size is 50MB.');
+            event.target.value = '';
+            return;
+        }
+
         try {
+            this.view.showAlert(`📂 Reading ${file.name}... (${(file.size / 1024).toFixed(2)} KB)`);
+            
             const content = await file.text();
+            
+            // Validate content has some HTML structure
+            if (!content.includes('<') && !content.includes('>')) {
+                throw new Error('File does not appear to be valid HTML');
+            }
             
             // Put it in the textarea
             const textarea = document.getElementById('quiz-input');
             if (textarea) {
                 textarea.value = content;
-                this.view.showAlert(`✅ Loaded ${file.name} - Click "Parse and Start" to create quiz!`);
+                this.view.showAlert(`✅ Loaded ${file.name} successfully!\n\n📋 Next step: Click "Parse and Start Quiz" button below to extract questions.`);
             }
         } catch (error) {
             console.error('Error reading HTML file:', error);
-            this.view.showAlert('❌ Error reading HTML file: ' + error.message);
+            this.view.showAlert('❌ Error reading HTML file: ' + error.message + '\n\nPlease make sure the file is a valid HTML file from Moodle quiz review page.');
         }
         
         // Reset file input
