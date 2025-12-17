@@ -9,6 +9,7 @@ class QuizController {
         this.currentQuiz = null;
         this.currentQuestionIndex = 0;
         this.userAnswers = {};
+        this.flaggedQuestions = new Set(); // Track flagged questions
         this.aiHelper = new AIHelper();
         this.sessionsKey = 'quizSessions';
         this.currentSessionId = null;
@@ -71,6 +72,12 @@ class QuizController {
         }
         if (this.view.showChatBtn) {
             this.view.showChatBtn.addEventListener('click', () => this.view.toggleChatSidebar());
+        }
+        
+        // Flag button
+        const flagCurrentBtn = document.getElementById('flag-current-btn');
+        if (flagCurrentBtn) {
+            flagCurrentBtn.addEventListener('click', () => this.toggleFlagCurrent());
         }
         
         // Options selection (use event delegation)
@@ -833,6 +840,9 @@ Try Option 1 (ZIP) - it's the easiest!`);
             this.view.showSection(this.view.quizSection);
             this.displayCurrentQuestion();
             
+            // Initialize question navigation board
+            this.initQuestionNavigation();
+            
             // Save initial session
             this.saveCurrentSession();
             
@@ -840,6 +850,98 @@ Try Option 1 (ZIP) - it's the easiest!`);
             this.view.showAlert('Error parsing quiz: ' + error.message);
             console.error(error);
         }
+    }
+
+    initQuestionNavigation() {
+        const navGrid = document.getElementById('question-nav-grid');
+        if (!navGrid) return;
+        
+        // Clear existing buttons
+        navGrid.innerHTML = '';
+        
+        // Create a button for each question
+        this.currentQuiz.questions.forEach((question, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'nav-question-btn';
+            btn.textContent = question.number;
+            btn.dataset.questionIndex = index;
+            btn.addEventListener('click', () => this.jumpToQuestion(index));
+            navGrid.appendChild(btn);
+        });
+        
+        // Update the navigation board state
+        this.updateQuestionNavigation();
+    }
+
+    updateQuestionNavigation() {
+        const navGrid = document.getElementById('question-nav-grid');
+        if (!navGrid) return;
+        
+        const buttons = navGrid.querySelectorAll('.nav-question-btn');
+        buttons.forEach((btn, index) => {
+            const question = this.currentQuiz.questions[index];
+            
+            // Remove all state classes
+            btn.classList.remove('answered', 'current', 'flagged');
+            
+            // Add current class
+            if (index === this.currentQuestionIndex) {
+                btn.classList.add('current');
+            }
+            
+            // Add answered class
+            if (this.userAnswers[question.number]) {
+                btn.classList.add('answered');
+            }
+            
+            // Add flagged class
+            if (this.flaggedQuestions.has(question.number)) {
+                btn.classList.add('flagged');
+            }
+        });
+        
+        // Update flag button state
+        const flagBtn = document.getElementById('flag-current-btn');
+        if (flagBtn) {
+            const currentQuestion = this.currentQuiz.questions[this.currentQuestionIndex];
+            if (this.flaggedQuestions.has(currentQuestion.number)) {
+                flagBtn.classList.add('flagged');
+            } else {
+                flagBtn.classList.remove('flagged');
+            }
+        }
+    }
+
+    jumpToQuestion(index) {
+        if (index >= 0 && index < this.currentQuiz.questions.length) {
+            this.currentQuestionIndex = index;
+            this.displayCurrentQuestion();
+            this.updateQuestionNavigation();
+            
+            // Update navigation buttons state
+            this.view.prevBtn.disabled = this.currentQuestionIndex === 0;
+            
+            if (this.currentQuestionIndex === this.currentQuiz.questions.length - 1) {
+                this.view.nextBtn.classList.add('hidden');
+                this.view.submitBtn.classList.remove('hidden');
+            } else {
+                this.view.nextBtn.classList.remove('hidden');
+                this.view.submitBtn.classList.add('hidden');
+            }
+        }
+    }
+
+    toggleFlagCurrent() {
+        const currentQuestion = this.currentQuiz.questions[this.currentQuestionIndex];
+        
+        if (this.flaggedQuestions.has(currentQuestion.number)) {
+            this.flaggedQuestions.delete(currentQuestion.number);
+        } else {
+            this.flaggedQuestions.add(currentQuestion.number);
+        }
+        
+        this.updateQuestionNavigation();
+        this.saveCurrentSession(); // Save flag state
     }
 
     displayCurrentQuestion() {
@@ -852,6 +954,9 @@ Try Option 1 (ZIP) - it's the easiest!`);
             this.currentQuiz.questions.length,
             userAnswer
         );
+        
+        // Update navigation board
+        this.updateQuestionNavigation();
     }
 
     selectOption(optionLabel) {
@@ -866,6 +971,9 @@ Try Option 1 (ZIP) - it's the easiest!`);
                 opt.classList.add('selected');
             }
         });
+        
+        // Update navigation board
+        this.updateQuestionNavigation();
         
         // Save session after answering
         this.saveCurrentSession();
@@ -1005,6 +1113,7 @@ Try Option 1 (ZIP) - it's the easiest!`);
             quizTitle: this.currentQuiz.title,
             currentQuestionIndex: this.currentQuestionIndex,
             userAnswers: this.userAnswers,
+            flaggedQuestions: Array.from(this.flaggedQuestions), // Save flagged questions
             totalQuestions: this.currentQuiz.questions.length,
             answeredCount: Object.keys(this.userAnswers).length,
             status: 'ongoing',
@@ -1133,6 +1242,7 @@ Try Option 1 (ZIP) - it's the easiest!`);
             this.currentQuiz = new Quiz(null, session.quizTitle || 'Current Quiz', session.quizContent, questions, answers);
             this.currentQuestionIndex = session.currentQuestionIndex;
             this.userAnswers = session.userAnswers;
+            this.flaggedQuestions = new Set(session.flaggedQuestions || []); // Restore flagged questions
             this.currentSessionId = session.id;
             
             // Restore timer states
@@ -1155,6 +1265,9 @@ Try Option 1 (ZIP) - it's the easiest!`);
             
             this.view.showSection(this.view.quizSection);
             this.displayCurrentQuestion();
+            
+            // Initialize question navigation board
+            this.initQuestionNavigation();
             
             this.view.showAlert('✅ Session resumed!');
         } catch (error) {
@@ -1272,6 +1385,7 @@ Try Option 1 (ZIP) - it's the easiest!`);
         this.currentQuiz = null;
         this.currentQuestionIndex = 0;
         this.userAnswers = {};
+        this.flaggedQuestions = new Set(); // Clear flagged questions
         this.currentSessionId = null;
         this.selectedReviewQuestion = null;
         this.quizStartTime = null;
