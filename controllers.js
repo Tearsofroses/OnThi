@@ -18,6 +18,7 @@ class QuizController {
         this.quizTimeLimit = null; // in seconds
         this.countdownInterval = null;
         this.remainingTime = null; // in seconds
+        this.preloadedAnswers = null; // Store answers from Firebase when loading community quiz
         
         this.initEventListeners();
         this.loadAllSessions(); // Load and display all sessions
@@ -497,6 +498,9 @@ Try Option 1 (ZIP) - it's the easiest!`);
                         this.view.setInputValue(quiz.content);
                         this.view.setQuizName(quiz.title);
                         this.view.setCourse(quiz.course || '');
+                        // Store the answers from Firebase so we don't need to re-parse
+                        this.preloadedAnswers = quiz.answers || null;
+                        console.log('Loaded quiz from Firebase with answers:', this.preloadedAnswers);
                     }
                 });
             });
@@ -742,12 +746,19 @@ Try Option 1 (ZIP) - it's the easiest!`);
         
         try {
             // Parse quiz data
-            const { questions, answers } = Quiz.parseFromText(content);
+            const { questions, answers: parsedAnswers } = Quiz.parseFromText(content);
             
             if (questions.length === 0) {
                 this.view.showAlert('No valid questions found. Please check your input format.');
                 return;
             }
+            
+            // Use preloaded answers from Firebase if available, otherwise use parsed answers
+            let answers = this.preloadedAnswers || parsedAnswers;
+            console.log('Using answers:', { preloaded: this.preloadedAnswers, parsed: parsedAnswers, final: answers });
+            
+            // Clear preloaded answers after use
+            this.preloadedAnswers = null;
             
             // Check if answers are missing (Moodle format doesn't include answers)
             if (Object.keys(answers).length === 0) {
