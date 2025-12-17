@@ -83,6 +83,7 @@ D. A hierarchy of objects.</pre>
                         <br>2. Press <kbd>Ctrl+U</kbd> (Windows) or <kbd>Cmd+Option+U</kbd> (Mac) to view page source
                         <br>3. Press <kbd>Ctrl+A</kbd> to select all, then <kbd>Ctrl+C</kbd> to copy
                         <br>4. Paste the HTML here - it will automatically extract questions AND correct answers!
+                        <br><strong>💡 For images:</strong> Use the Moodle Quiz Extractor above or run this bookmarklet on the quiz page first: <code>javascript:(async function(){const imgs=document.querySelectorAll('img');let count=0;for(let img of imgs){if(!img.src.startsWith('data:')){try{const r=await fetch(img.src);const b=await r.blob();const d=await new Promise(res=>{const rd=new FileReader();rd.onloadend=()=>res(rd.result);rd.readAsDataURL(b);});img.src=d;count++;}catch(e){}}}alert(\`Converted \${count} images to base64!\`);})();</code>
                     </p>
                     
                     <p class="format-note"><strong>💡 Note:</strong> LaTeX math notation like $\pi$, $\sigma$, $R(X,Y)$ is supported! Markdown formatting is also supported (**bold**, *italic*, `code`, [links](url)). HTML format automatically extracts correct answers from the page.</p>
@@ -201,7 +202,7 @@ D. A hierarchy of objects.</pre>
             <div class="quiz-content-with-nav">
                 <div class="quiz-question-area">
                     <div id="question-container">
-                        <h3 id="question-text"></h3>
+                        <div id="question-text"></div>
                         <div id="options-container" class="options"></div>
                     </div>
 

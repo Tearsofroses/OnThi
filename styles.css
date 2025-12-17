@@ -561,6 +561,14 @@ kbd {
     line-height: 1.6;
 }
 
+#question-text img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 10px 0;
+    border-radius: 4px;
+}
+
 /* Markdown styling for questions and options */
 #question-text strong,
 .option-text strong {

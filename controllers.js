@@ -1099,8 +1099,8 @@ Try Option 1 (ZIP) - it's the easiest!`);
     
     stripBase64Images(content) {
         if (!content) return content;
-        // Replace base64 image data with placeholder to save space
-        return content.replace(/src="data:image\/[^;]+;base64,[^"]+"/g, 'src="data:image/placeholder"');
+        // Keep base64 images as they are (don't strip them)
+        return content;
     }
     
     saveCurrentSession() {
