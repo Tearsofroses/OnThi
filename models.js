@@ -435,7 +435,7 @@ class Quiz {
             }
             
             // First pass: collect all answer texts
-            const answerData = []; // Store {label, text, plainText, element, isCorrect} for processing
+            const answerData = []; // Store {label, text, plainText, element, isCorrect, isChecked} for processing
             
             answerElements.forEach((answerElement, idx) => {
                 // Try to find answer number/label
@@ -451,6 +451,14 @@ class Quiz {
                 
                 // Check if this answer has the "correct" class (e.g., "r0 correct" or "r1 correct")
                 const isCorrect = answerElement.classList.contains('correct');
+                
+                // Check if radio button has checked="checked" attribute (most reliable method)
+                const radioInput = answerElement.querySelector('input[type="radio"]');
+                const isChecked = radioInput && (
+                    radioInput.checked || 
+                    radioInput.hasAttribute('checked') || 
+                    radioInput.getAttribute('checked') === 'checked'
+                );
                 
                 // Get answer text with HTML (images)
                 let answerText = '';
@@ -492,19 +500,30 @@ class Quiz {
                     plainText: plainText,
                     imageSrc: imageSrc,
                     element: answerElement,
-                    isCorrect: isCorrect  // Store the "correct" class status
+                    isCorrect: isCorrect,  // Store the "correct" class status
+                    isChecked: isChecked   // Store the checked status
                 });
             });
             
-            // Extract correct answer - Method 1: Check for "correct" class in answer elements
+            // Extract correct answer - Method 1: Check for checked="checked" attribute (MOST RELIABLE)
             let correctLabel = null;
             
-            // First, try to find answer with "correct" class (most reliable method)
-            const correctAnswer = answerData.find(answer => answer.isCorrect);
-            if (correctAnswer) {
-                correctLabel = correctAnswer.label;
-                answers[questionNumber] = correctLabel;  // Store the correct answer immediately
-                console.log('Question ' + questionNumber + ' - Found correct answer via "correct" class: ' + correctLabel);
+            // First priority: checked="checked" attribute on radio button (most reliable)
+            const checkedAnswer = answerData.find(answer => answer.isChecked);
+            if (checkedAnswer) {
+                correctLabel = checkedAnswer.label;
+                answers[questionNumber] = correctLabel;
+                console.log('Question ' + questionNumber + ' - Found correct answer via checked="checked": ' + correctLabel);
+            }
+            
+            // Second priority: "correct" class in answer elements
+            if (!correctLabel) {
+                const correctAnswer = answerData.find(answer => answer.isCorrect);
+                if (correctAnswer) {
+                    correctLabel = correctAnswer.label;
+                    answers[questionNumber] = correctLabel;
+                    console.log('Question ' + questionNumber + ' - Found correct answer via "correct" class: ' + correctLabel);
+                }
             }
             
             // Method 2: If no "correct" class found, look for "The correct answer is:" in the rightanswer div
@@ -641,36 +660,12 @@ class Quiz {
                 }
             }
             
-            // Build options and apply fallback detection if needed
-            answerData.forEach(({label, text, element}) => {
+            // Build options list
+            answerData.forEach(({label, text}) => {
                 options.push({
                     label: label,
                     text: text || `Option ${label}`
                 });
-                
-                // If we already found the correct answer via duplicate detection, skip fallback for this question
-                if (correctLabel) return;
-                
-                // Fallback: Check using attribute/class-based methods
-                const radioInput = element.querySelector('input[type="radio"]');
-                const isChecked = radioInput && (
-                    radioInput.checked || 
-                    radioInput.hasAttribute('checked') || 
-                    radioInput.getAttribute('checked') === 'checked'
-                );
-                
-                // Check for 'correct' class in multiple locations
-                const hasCorrectClass = element.classList.contains('correct') ||
-                                       element.classList.contains('r1') || // Moodle uses r1 for correct answers
-                                       (radioInput && radioInput.parentElement && radioInput.parentElement.classList.contains('correct'));
-                
-                // Also check if any parent container has 'correct' in its class or if there's a correctness indicator
-                const hasCorrectParent = element.querySelector('.correct, .correctness, [class*="correct"]') !== null;
-                
-                if (isChecked || hasCorrectClass || hasCorrectParent) {
-                    answers[questionNumber] = label;
-                    correctLabel = label; // Mark as found to stop checking other options
-                }
             });
             
             // Only add question if it has options OR has content
