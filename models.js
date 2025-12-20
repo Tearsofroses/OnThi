@@ -860,6 +860,187 @@ class Quiz {
         // Note: Text format doesn't include answers in the export
         return { questions, answers };
     }
+
+    /**
+     * Optimize quiz data for community sharing by removing redundant content
+     * and extracting unique images to reduce storage size
+     */
+    static optimizeForSharing(quiz) {
+        const optimized = {
+            title: quiz.title,
+            course: quiz.course || '',
+            timestamp: quiz.timestamp || new Date().toISOString(),
+            questionCount: quiz.questions?.length || 0,
+            questions: [],
+            answers: quiz.answers || {},
+            images: [], // Array of unique base64 images
+            imageMap: {} // Map from image hash to index in images array
+        };
+
+        // Extract all unique base64 images from questions and options
+        const imageRegex = /data:image\/[^;]+;base64,([A-Za-z0-9+/=]+)/g;
+        const foundImages = new Map(); // hash -> base64 data
+
+        // Process questions and options to extract images
+        quiz.questions?.forEach((question, qIndex) => {
+            const optimizedQuestion = {
+                number: question.number,
+                lo: question.lo || '',
+                text: question.text,
+                options: []
+            };
+
+            // Process question text
+            let processedText = question.text;
+            let match;
+            while ((match = imageRegex.exec(question.text)) !== null) {
+                const fullImageData = match[0];
+                const imageData = match[1];
+                const hash = this.generateImageHash(imageData);
+
+                if (!foundImages.has(hash)) {
+                    foundImages.set(hash, fullImageData);
+                }
+
+                // Replace with placeholder that can be reconstructed
+                processedText = processedText.replace(fullImageData, `__IMAGE_${hash}__`);
+            }
+            optimizedQuestion.text = processedText;
+
+            // Process options
+            question.options?.forEach((option, oIndex) => {
+                let processedOptionText = option.text;
+                while ((match = imageRegex.exec(option.text)) !== null) {
+                    const fullImageData = match[0];
+                    const imageData = match[1];
+                    const hash = this.generateImageHash(imageData);
+
+                    if (!foundImages.has(hash)) {
+                        foundImages.set(hash, fullImageData);
+                    }
+
+                    processedOptionText = processedOptionText.replace(fullImageData, `__IMAGE_${hash}__`);
+                }
+
+                optimizedQuestion.options.push({
+                    label: option.label,
+                    text: processedOptionText
+                });
+            });
+
+            optimized.questions.push(optimizedQuestion);
+        });
+
+        // Convert found images to array and create mapping
+        optimized.images = Array.from(foundImages.values());
+        foundImages.forEach((imageData, hash) => {
+            optimized.imageMap[hash] = optimized.images.indexOf(imageData);
+        });
+
+        // Remove the original content to save space - we can reconstruct from parsed data
+        // Don't store quiz.content as it's redundant with the parsed questions
+
+        return optimized;
+    }
+
+    /**
+     * Generate a hash for base64 image data to detect duplicates
+     */
+    static generateImageHash(base64Data) {
+        let hash = 0;
+        // Sample every 100th character to create a representative hash
+        for (let i = 0; i < base64Data.length; i += 100) {
+            hash = ((hash << 5) - hash) + base64Data.charCodeAt(i);
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        return Math.abs(hash).toString(36);
+    }
+
+    /**
+     * Reconstruct full quiz data from optimized format
+     */
+    static reconstructFromOptimized(optimized) {
+        const reconstructed = {
+            title: optimized.title,
+            course: optimized.course || '',
+            timestamp: optimized.timestamp,
+            questions: [],
+            answers: optimized.answers || {}
+        };
+
+        // Reconstruct questions with images
+        optimized.questions?.forEach((question) => {
+            const reconstructedQuestion = {
+                number: question.number,
+                lo: question.lo || '',
+                text: question.text,
+                options: []
+            };
+
+            // Restore images in question text
+            let processedText = question.text;
+            const imagePlaceholderRegex = /__IMAGE_([a-z0-9]+)__/g;
+            processedText = processedText.replace(imagePlaceholderRegex, (match, hash) => {
+                const imageIndex = optimized.imageMap[hash];
+                return imageIndex !== undefined ? optimized.images[imageIndex] : match;
+            });
+            reconstructedQuestion.text = processedText;
+
+            // Restore images in options
+            question.options?.forEach((option) => {
+                let processedOptionText = option.text;
+                processedOptionText = processedOptionText.replace(imagePlaceholderRegex, (match, hash) => {
+                    const imageIndex = optimized.imageMap[hash];
+                    return imageIndex !== undefined ? optimized.images[imageIndex] : match;
+                });
+
+                reconstructedQuestion.options.push({
+                    label: option.label,
+                    text: processedOptionText
+                });
+            });
+
+            reconstructed.questions.push(reconstructedQuestion);
+        });
+
+        return reconstructed;
+    }
+
+    /**
+     * Reconstruct content string from parsed questions and answers for backward compatibility
+     */
+    static reconstructContentFromParsed(questions, answers) {
+        if (!questions || questions.length === 0) return '';
+
+        let content = '';
+
+        questions.forEach((question, index) => {
+            const questionNumber = question.number || (index + 1);
+            const lo = question.lo ? ` (${question.lo})` : '';
+            
+            content += `${questionNumber}.${lo} ${question.text}\n\n`;
+            
+            question.options?.forEach((option) => {
+                content += `${option.label}. ${option.text}\n`;
+            });
+            
+            content += '\n';
+        });
+
+        // Add answer key at the end
+        if (answers && Object.keys(answers).length > 0) {
+            content += '\nANSWER KEY: ';
+            const answerEntries = Object.entries(answers)
+                .sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+            
+            answerEntries.forEach(([number, answer], index) => {
+                content += `${number}${answer}`;
+                if (index < answerEntries.length - 1) content += ' ';
+            });
+        }
+
+        return content.trim();
+    }
 }
 
 // =====================
@@ -1027,19 +1208,29 @@ class StorageModel {
                 
                 const quizzes = [];
                 snapshot.forEach((childSnapshot) => {
-                    const quiz = childSnapshot.val();
-                    quiz.id = childSnapshot.key;
-                    quizzes.push(quiz);
+                    const optimizedQuiz = childSnapshot.val();
+                    optimizedQuiz.id = childSnapshot.key;
+                    
+                    // Reconstruct full quiz data from optimized format
+                    const reconstructedQuiz = Quiz.reconstructFromOptimized(optimizedQuiz);
+                    
+                    // Add metadata
+                    reconstructedQuiz.id = optimizedQuiz.id;
+                    reconstructedQuiz.timestamp = optimizedQuiz.timestamp;
+                    reconstructedQuiz.questionCount = optimizedQuiz.questionCount;
+                    reconstructedQuiz.contentHash = optimizedQuiz.contentHash;
+                    
+                    quizzes.push(reconstructedQuiz);
                 });
                 
-                console.log('Loaded Firebase quizzes:', quizzes.length);
+                console.log('Loaded and reconstructed Firebase quizzes:', quizzes.length);
                 return quizzes.reverse(); // Most recent first
             } catch (error) {
                 console.error('Error loading Firebase quizzes:', error);
                 return [];
             }
         } else {
-            // Fallback to JSON file
+            // Fallback to JSON file - reconstruct from legacy format
             try {
                 const timestamp = new Date().getTime();
                 const response = await fetch(`${this.sharedQuizzesUrl}?t=${timestamp}`);
@@ -1051,7 +1242,28 @@ class StorageModel {
                 
                 const data = await response.json();
                 console.log('Loaded shared quizzes from JSON:', data);
-                return data.sharedQuizzes || [];
+                
+                // Convert legacy format to reconstructed format
+                const quizzes = (data.sharedQuizzes || []).map(legacyQuiz => {
+                    // If it's already in optimized format, reconstruct it
+                    if (legacyQuiz.images && legacyQuiz.imageMap) {
+                        return Quiz.reconstructFromOptimized(legacyQuiz);
+                    }
+                    
+                    // Legacy format: parse from content
+                    const { questions, answers } = Quiz.parseFromText(legacyQuiz.content || '');
+                    return {
+                        id: legacyQuiz.id,
+                        title: legacyQuiz.title,
+                        course: legacyQuiz.course || 'General',
+                        timestamp: legacyQuiz.timestamp,
+                        questions: questions,
+                        answers: answers,
+                        questionCount: questions.length
+                    };
+                });
+                
+                return quizzes;
             } catch (error) {
                 console.error('Error loading shared quizzes:', error);
                 return [];
@@ -1090,15 +1302,21 @@ class StorageModel {
                 console.log('Authenticated anonymously');
             }
             
+            // Optimize quiz data for efficient storage and sharing
+            const optimizedQuiz = Quiz.optimizeForSharing(quiz);
+            
             // Prepare quiz data to match Firebase validation rules
             const quizData = {
-                title: quiz.title || 'Untitled Quiz',
-                content: quiz.content || '',
-                questions: quiz.questions || [],
-                answers: quiz.answers || {},
-                timestamp: new Date().toISOString(),
-                course: quiz.course || 'General',
-                questionCount: (quiz.questions || []).length
+                title: optimizedQuiz.title || 'Untitled Quiz',
+                course: optimizedQuiz.course || 'General',
+                timestamp: optimizedQuiz.timestamp,
+                questionCount: optimizedQuiz.questionCount,
+                questions: optimizedQuiz.questions,
+                answers: optimizedQuiz.answers,
+                images: optimizedQuiz.images,
+                imageMap: optimizedQuiz.imageMap,
+                // Store original content hash for duplicate detection
+                contentHash: quiz.hash || ''
             };
             
             // Validate data before sending
@@ -1108,15 +1326,12 @@ class StorageModel {
             if (quizData.title.length >= 200) {
                 throw new Error('Quiz title is too long (max 200 characters)');
             }
-            if (typeof quizData.content !== 'string') {
-                throw new Error('Quiz content must be a string');
-            }
             if (typeof quizData.questionCount !== 'number') {
                 throw new Error('Invalid question count');
             }
             
             const newQuizRef = await this.firebaseDb.ref('sharedQuizzes').push(quizData);
-            console.log('Quiz published to community:', newQuizRef.key);
+            console.log('Quiz published to community (optimized):', newQuizRef.key);
             return newQuizRef.key;
         } catch (error) {
             console.error('Error publishing quiz:', error);

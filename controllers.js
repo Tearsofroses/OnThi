@@ -502,7 +502,14 @@ Try Option 1 (ZIP) - it's the easiest!`);
                     const quizIndex = parseInt(quizItem.dataset.quizIndex);
                     if (quizIndex >= 0 && this.view.sharedQuizzesCache[quizIndex]) {
                         const quiz = this.view.sharedQuizzesCache[quizIndex];
-                        this.view.setInputValue(quiz.content);
+                        
+                        // Reconstruct content from parsed data if content is missing (optimized format)
+                        let content = quiz.content;
+                        if (!content && quiz.questions) {
+                            content = Quiz.reconstructContentFromParsed(quiz.questions, quiz.answers);
+                        }
+                        
+                        this.view.setInputValue(content);
                         this.view.setQuizName(quiz.title);
                         this.view.setCourse(quiz.course || '');
                         // Store the answers from Firebase so we don't need to re-parse
