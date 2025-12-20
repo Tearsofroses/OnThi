@@ -24,6 +24,73 @@ class Quiz {
         return hash.toString(36);
     }
 
+    static shuffleOptions(questions, answers) {
+        const shuffledQuestions = [];
+        const shuffledAnswers = {};
+
+        for (const question of questions) {
+            const originalOptions = question.options.slice(); // Copy original options
+            const shuffledOptions = [];
+            const labelMapping = {}; // Map from original label to new label
+
+            // Generate labels dynamically based on number of options (A, B, C, D, E, ...)
+            const numOptions = originalOptions.length;
+            const labels = [];
+            for (let i = 0; i < numOptions; i++) {
+                labels.push(String.fromCharCode(65 + i)); // 65 is ASCII for 'A'
+            }
+
+            // Shuffle the options
+            const shuffledIndices = this.shuffleArray([...Array(originalOptions.length).keys()]);
+
+            for (let i = 0; i < originalOptions.length; i++) {
+                const originalIndex = shuffledIndices[i];
+                const originalOption = originalOptions[originalIndex];
+                const newLabel = labels[i];
+
+                shuffledOptions.push({
+                    label: newLabel,
+                    text: originalOption.text
+                });
+
+                labelMapping[originalOption.label] = newLabel;
+            }
+
+            // Create shuffled question
+            const shuffledQuestion = {
+                ...question,
+                options: shuffledOptions,
+                originalLabelMapping: labelMapping // Store mapping for reference if needed
+            };
+
+            shuffledQuestions.push(shuffledQuestion);
+
+            // Update answer for this question
+            const questionNumber = question.number;
+            if (answers[questionNumber]) {
+                const originalAnswer = answers[questionNumber];
+                const newAnswer = labelMapping[originalAnswer];
+                if (newAnswer) {
+                    shuffledAnswers[questionNumber] = newAnswer;
+                } else {
+                    // If mapping not found, keep original (shouldn't happen)
+                    shuffledAnswers[questionNumber] = originalAnswer;
+                }
+            }
+        }
+
+        return { questions: shuffledQuestions, answers: shuffledAnswers };
+    }
+
+    static shuffleArray(array) {
+        const shuffled = array.slice();
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }
+
     static detectFormat(text) {
         // Check for Moodle/LMS format indicators
         if ((text.includes('Question text') || text.includes('Question 1')) && 
@@ -56,7 +123,7 @@ class Quiz {
         // Extract answer key first and remove it from text
         const answerKeyMatch = text.match(/ANSWER KEY:\s*(.+)/i);
         if (answerKeyMatch) {
-            const compactMatches = answerKeyMatch[1].matchAll(/(\d+)([A-D])/gi);
+            const compactMatches = answerKeyMatch[1].matchAll(/(\d+)([A-Z])/gi);
             for (const match of compactMatches) {
                 answers[parseInt(match[1])] = match[2].toUpperCase();
             }
@@ -78,8 +145,8 @@ class Quiz {
             const trimmedPara = para.trim();
             if (!trimmedPara) continue;
             
-            // Check if this paragraph looks like a question (has options A. B. C. D.)
-            const hasOptions = /\s+[A-D]\.\s+/g.test(trimmedPara);
+            // Check if this paragraph looks like a question (has options A. B. C. D. ...)
+            const hasOptions = /\s+[A-Z]\.\s+/g.test(trimmedPara);
             if (!hasOptions) continue;
             
             // Try to match numbered question: "1. (LO X.X) text" or "1. text"
@@ -95,15 +162,15 @@ class Quiz {
                 contentWithOptions = trimmedPara;
             }
             
-            // Find where options start (first occurrence of A. B. C. or D. preceded by whitespace)
-            const firstOptionMatch = contentWithOptions.match(/\s+([A-D])\.\s+/);
+            // Find where options start (first occurrence of A. B. C. ... preceded by whitespace)
+            const firstOptionMatch = contentWithOptions.match(/\s+([A-Z])\.\s+/);
             if (!firstOptionMatch) continue;
             
             questionText = contentWithOptions.substring(0, firstOptionMatch.index).trim();
             const optionsText = contentWithOptions.substring(firstOptionMatch.index);
             
             // Extract all options
-            const optionMatches = Array.from(optionsText.matchAll(/([A-D])\.\s+(.+?)(?=\s+[A-D]\.\s+|\s*$)/gs));
+            const optionMatches = Array.from(optionsText.matchAll(/([A-Z])\.\s+(.+?)(?=\s+[A-Z]\.\s+|\s*$)/gs));
             const options = optionMatches.map(opt => ({
                 label: opt[1].toUpperCase(),
                 text: opt[2].trim()
@@ -131,8 +198,8 @@ class Quiz {
                 line = line.trim();
                 
                 // Parse answer key
-                if (line.match(/^\d+[A-D]/i) || line.includes('QAns')) {
-                    const compactMatches = line.matchAll(/(\d+)([A-D])/gi);
+                if (line.match(/^\d+[A-Z]/i) || line.includes('QAns')) {
+                    const compactMatches = line.matchAll(/(\d+)([A-Z])/gi);
                     for (const match of compactMatches) {
                         answers[parseInt(match[1])] = match[2].toUpperCase();
                     }
@@ -166,7 +233,7 @@ class Quiz {
                 }
                 
                 // Parse options
-                const optionMatch = line.match(/^([A-D])\.\s*(.+)/);
+                const optionMatch = line.match(/^([A-Z])\.\s*(.+)/);
                 if (optionMatch && currentQuestion && expectingOptions) {
                     currentQuestion.options.push({
                         label: optionMatch[1].toUpperCase(),
@@ -742,13 +809,13 @@ class Quiz {
                 // Collect question text
                 if (questionTextStarted && !optionsStarted && 
                     !line.match(/^Question\s+\d+/i) &&
-                    !line.match(/^[a-d]\.$/i) && line) {
+                    !line.match(/^[a-z]\.$/i) && line) {
                     questionText += (questionText ? ' ' : '') + line;
                 }
                 
                 // Parse options - letter on one line, text on following lines
                 if (optionsStarted) {
-                    const optionMatch = line.match(/^([a-d])\.$/i);
+                    const optionMatch = line.match(/^([a-z])\.$/i);
                     if (optionMatch) {
                         const optionLabel = optionMatch[1].toUpperCase();
                         let optionText = '';
@@ -758,7 +825,7 @@ class Quiz {
                         while (j < lines.length) {
                             const nextLine = lines[j].trim();
                             // Stop if we hit another option letter, next question, or empty line followed by option
-                            if (nextLine.match(/^[a-d]\.$/i) || 
+                            if (nextLine.match(/^[a-z]\.$/i) || 
                                 nextLine.match(/^Question\s+\d+$/i)) {
                                 break;
                             }

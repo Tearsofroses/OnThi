@@ -309,7 +309,7 @@ function parseQuizData(input) {
         const line = lines[i].trim();
         
         // Check if it's an answer key line
-        if (line.match(/^\d+[A-D]/i) || line.includes('QAnsQAns')) {
+        if (line.match(/^\d+[A-Z]/i) || line.includes('QAnsQAns')) {
             parseAnswerKey(line);
             continue;
         }
@@ -333,18 +333,16 @@ function parseQuizData(input) {
             continue;
         }
         
-        // Check if it's an option (A., B., C., D.)
-        const optionMatch = line.match(/^([A-D])\.\s*(.+)/);
+        // Check if it's an option (A., B., C., D., ...)
+        const optionMatch = line.match(/^([A-Z])\.\s*(.+)/);
         if (optionMatch && currentQuestion && expectingOptions) {
             currentQuestion.options.push({
                 label: optionMatch[1],
                 text: optionMatch[2]
             });
             
-            // If we have 4 options, stop expecting more
-            if (currentQuestion.options.length === 4) {
-                expectingOptions = false;
-            }
+            // If we have 4+ options, we can continue expecting more
+            // (removed the limit that stopped at 4 options)
         }
     }
     
@@ -356,7 +354,7 @@ function parseQuizData(input) {
 
 function parseAnswerKey(line) {
     // Handle compact format like "1B2B3C..."
-    const compactMatches = line.matchAll(/(\d+)([A-D])/gi);
+    const compactMatches = line.matchAll(/(\d+)([A-Z])/gi);
     for (const match of compactMatches) {
         const questionNum = parseInt(match[1]);
         const answer = match[2].toUpperCase();

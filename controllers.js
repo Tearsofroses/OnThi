@@ -787,7 +787,7 @@ Try Option 1 (ZIP) - it's the easiest!`);
                     
                     if (answerKey) {
                         // Parse the answer key
-                        const answerMatches = answerKey.matchAll(/(\d+)([A-D])/gi);
+                        const answerMatches = answerKey.matchAll(/(\d+)([A-Z])/gi);
                         for (const match of answerMatches) {
                             answers[parseInt(match[1])] = match[2].toUpperCase();
                         }
@@ -806,10 +806,13 @@ Try Option 1 (ZIP) - it's the easiest!`);
                 }
             }
             
+            // Shuffle options and adjust answers
+            const { questions: shuffledQuestions, answers: shuffledAnswers } = Quiz.shuffleOptions(questions, answers);
+            
             // Create quiz object
             const title = this.view.getQuizName() || 'Current Quiz';
             const course = this.view.getCourse();
-            this.currentQuiz = new Quiz(null, title, content, questions, answers, null, course);
+            this.currentQuiz = new Quiz(null, title, content, shuffledQuestions, shuffledAnswers, null, course);
             this.currentQuestionIndex = 0;
             this.userAnswers = {};
             this.currentSessionId = null; // New session
@@ -1134,22 +1137,33 @@ Try Option 1 (ZIP) - it's the easiest!`);
             sessions.unshift(sessionData);
         }
         
-        // Keep only last 10 sessions to save space
-        if (sessions.length > 10) {
-            sessions.splice(10);
+        // Limit storage to 8MB (Chrome's typical localStorage limit)
+        const maxStorageSize = 8 * 1024 * 1024; // 8MB
+        let sessionsData = JSON.stringify(sessions);
+        let dataSize = new Blob([sessionsData]).size;
+        
+        while (dataSize > maxStorageSize && sessions.length > 1) {
+            // Remove oldest session (last in array)
+            sessions.pop();
+            sessionsData = JSON.stringify(sessions);
+            dataSize = new Blob([sessionsData]).size;
         }
         
         try {
-            localStorage.setItem(this.sessionsKey, JSON.stringify(sessions));
+            localStorage.setItem(this.sessionsKey, sessionsData);
         } catch (e) {
             if (e.name === 'QuotaExceededError' || e.code === 22) {
                 // Storage quota exceeded, try to save with even fewer sessions
-                console.warn('Storage quota exceeded, reducing to 5 sessions');
-                sessions.splice(5);
+                console.warn('Storage quota exceeded, reducing sessions to fit');
+                while (sessions.length > 1 && dataSize > maxStorageSize) {
+                    sessions.pop();
+                    sessionsData = JSON.stringify(sessions);
+                    dataSize = new Blob([sessionsData]).size;
+                }
                 try {
-                    localStorage.setItem(this.sessionsKey, JSON.stringify(sessions));
+                    localStorage.setItem(this.sessionsKey, sessionsData);
                 } catch (e2) {
-                    console.error('Failed to save session even after reduction:', e2);
+                    console.error('Failed to save session even after size reduction:', e2);
                     this.view.showAlert('Warning: Unable to save quiz progress due to storage limitations.');
                 }
             }
@@ -1197,21 +1211,33 @@ Try Option 1 (ZIP) - it's the easiest!`);
             sessions.unshift(sessionData);
         }
         
-        // Keep only last 10 sessions
-        if (sessions.length > 10) {
-            sessions.splice(10);
+        // Limit storage to 8MB (Chrome's typical localStorage limit)
+        const maxStorageSize = 8 * 1024 * 1024; // 8MB
+        let sessionsData = JSON.stringify(sessions);
+        let dataSize = new Blob([sessionsData]).size;
+        
+        while (dataSize > maxStorageSize && sessions.length > 1) {
+            // Remove oldest session (last in array)
+            sessions.pop();
+            sessionsData = JSON.stringify(sessions);
+            dataSize = new Blob([sessionsData]).size;
         }
         
         try {
-            localStorage.setItem(this.sessionsKey, JSON.stringify(sessions));
+            localStorage.setItem(this.sessionsKey, sessionsData);
         } catch (e) {
             if (e.name === 'QuotaExceededError' || e.code === 22) {
-                console.warn('Storage quota exceeded, reducing to 5 sessions');
-                sessions.splice(5);
+                // Storage quota exceeded, try to save with even fewer sessions
+                console.warn('Storage quota exceeded, reducing sessions to fit');
+                while (sessions.length > 1 && dataSize > maxStorageSize) {
+                    sessions.pop();
+                    sessionsData = JSON.stringify(sessions);
+                    dataSize = new Blob([sessionsData]).size;
+                }
                 try {
-                    localStorage.setItem(this.sessionsKey, JSON.stringify(sessions));
+                    localStorage.setItem(this.sessionsKey, sessionsData);
                 } catch (e2) {
-                    console.error('Failed to save session even after reduction:', e2);
+                    console.error('Failed to save session even after size reduction:', e2);
                     this.view.showAlert('Warning: Unable to save quiz results due to storage limitations.');
                 }
             }
