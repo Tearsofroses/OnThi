@@ -1112,8 +1112,17 @@ Try Option 1 (ZIP) - it's the easiest!`);
         const sessions = this.getAllSessions();
         const sessionData = {
             id: this.currentSessionId || Date.now(),
-            quizContent: this.stripBase64Images(this.currentQuiz.content),
             quizTitle: this.currentQuiz.title,
+            questions: this.currentQuiz.questions.map(q => ({
+                number: q.number,
+                lo: q.lo,
+                text: this.stripBase64Images(q.text),
+                options: q.options.map(o => ({
+                    label: o.label,
+                    text: this.stripBase64Images(o.text)
+                }))
+            })),
+            answers: this.currentQuiz.answers,
             currentQuestionIndex: this.currentQuestionIndex,
             userAnswers: this.userAnswers,
             flaggedQuestions: Array.from(this.flaggedQuestions), // Save flagged questions
@@ -1137,14 +1146,14 @@ Try Option 1 (ZIP) - it's the easiest!`);
             sessions.unshift(sessionData);
         }
         
-        // Limit storage to 8MB (Chrome's typical localStorage limit)
-        const maxStorageSize = 8 * 1024 * 1024; // 8MB
+        // Limit storage to 4MB (aggressive limit for maximum compatibility)
+        const maxStorageSize = 4 * 1024 * 1024; // 4MB
         let sessionsData = JSON.stringify(sessions);
         let dataSize = new Blob([sessionsData]).size;
         
         while (dataSize > maxStorageSize && sessions.length > 1) {
-            // Remove oldest session (last in array)
-            sessions.pop();
+            // Remove oldest sessions more aggressively (remove 2 at a time)
+            sessions.splice(-2, 2); // Remove last 2 sessions
             sessionsData = JSON.stringify(sessions);
             dataSize = new Blob([sessionsData]).size;
         }
@@ -1189,11 +1198,11 @@ Try Option 1 (ZIP) - it's the easiest!`);
         
         const sessionData = {
             id: this.currentSessionId || Date.now(),
-            quizContent: this.stripBase64Images(this.currentQuiz.content),
             quizTitle: this.currentQuiz.title,
+            questions: questionsWithoutImages,
+            answers: this.currentQuiz.answers,
             userAnswers: this.userAnswers,
             correctAnswers: this.currentQuiz.answers,
-            questions: questionsWithoutImages,
             totalQuestions: this.currentQuiz.questions.length,
             score: score,
             percentage: Math.round((score / this.currentQuiz.questions.length) * 100),
@@ -1211,14 +1220,14 @@ Try Option 1 (ZIP) - it's the easiest!`);
             sessions.unshift(sessionData);
         }
         
-        // Limit storage to 8MB (Chrome's typical localStorage limit)
-        const maxStorageSize = 8 * 1024 * 1024; // 8MB
+        // Limit storage to 4MB (aggressive limit for maximum compatibility)
+        const maxStorageSize = 4 * 1024 * 1024; // 4MB
         let sessionsData = JSON.stringify(sessions);
         let dataSize = new Blob([sessionsData]).size;
         
         while (dataSize > maxStorageSize && sessions.length > 1) {
-            // Remove oldest session (last in array)
-            sessions.pop();
+            // Remove oldest sessions more aggressively (remove 2 at a time)
+            sessions.splice(-2, 2); // Remove last 2 sessions
             sessionsData = JSON.stringify(sessions);
             dataSize = new Blob([sessionsData]).size;
         }
@@ -1230,7 +1239,8 @@ Try Option 1 (ZIP) - it's the easiest!`);
                 // Storage quota exceeded, try to save with even fewer sessions
                 console.warn('Storage quota exceeded, reducing sessions to fit');
                 while (sessions.length > 1 && dataSize > maxStorageSize) {
-                    sessions.pop();
+                    // Remove oldest sessions more aggressively (remove 2 at a time)
+                    sessions.splice(-2, 2); // Remove last 2 sessions
                     sessionsData = JSON.stringify(sessions);
                     dataSize = new Blob([sessionsData]).size;
                 }
@@ -1261,11 +1271,26 @@ Try Option 1 (ZIP) - it's the easiest!`);
         
         // Restore ongoing quiz
         try {
-            this.view.setInputValue(session.quizContent);
-            this.view.setQuizName(session.quizTitle || '');
+            // Handle both old format (with quizContent) and new format (with parsed questions)
+            let questions, answers, quizContent;
             
-            const { questions, answers } = Quiz.parseFromText(session.quizContent);
-            this.currentQuiz = new Quiz(null, session.quizTitle || 'Current Quiz', session.quizContent, questions, answers);
+            if (session.quizContent) {
+                // Old format: parse from stored content
+                this.view.setInputValue(session.quizContent);
+                this.view.setQuizName(session.quizTitle || '');
+                const parsed = Quiz.parseFromText(session.quizContent);
+                questions = parsed.questions;
+                answers = parsed.answers;
+                quizContent = session.quizContent;
+            } else {
+                // New format: use stored parsed data
+                questions = session.questions;
+                answers = session.answers;
+                quizContent = ''; // Empty content for parsed-only sessions
+                this.view.setQuizName(session.quizTitle || '');
+            }
+            
+            this.currentQuiz = new Quiz(null, session.quizTitle || 'Current Quiz', quizContent, questions, answers);
             this.currentQuestionIndex = session.currentQuestionIndex;
             this.userAnswers = session.userAnswers;
             this.flaggedQuestions = new Set(session.flaggedQuestions || []); // Restore flagged questions
