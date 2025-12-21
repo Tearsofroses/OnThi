@@ -10,8 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
     <!-- JSZip for ZIP file handling -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <!-- Google reCAPTCHA v3 -->
-    <script src="https://www.google.com/recaptcha/api.js?render=6LfFVyksAAAAAHRZbip60OZY6h19WSAwrKojXlf5"></script>
+    <!-- reCAPTCHA removed to avoid third-party cookies -->
 </head>
 <body>
     <div class="container">
@@ -56,7 +55,6 @@
                     <div class="format-header">
                         <strong>📝 Format 1: Compact Format (with answer key)</strong>
                         <div class="format-buttons">
-                            <button id="copy-prompt-btn" class="btn-copy-format" title="Copy AI prompt for generating quizzes">🤖 Copy AI Prompt</button>
                             <button id="copy-format-btn" class="btn-copy-format" title="Copy sample format">📋 Copy Sample</button>
                         </div>
                     </div>
@@ -185,10 +183,9 @@ D. A hierarchy of objects.</pre>
 
         <!-- Quiz Section -->
         <div id="quiz-section" class="section hidden quiz-with-chat">
-            <div class="quiz-main-content chat-hidden">
+            <div class="quiz-main-content">
                 <div class="quiz-header">
                     <button id="return-to-main-btn" class="btn-return" title="Return to Main Page">← Back</button>
-                    <button id="show-chat-btn" class="btn-show-chat hidden" title="Show AI Chat">💬 Show AI Helper</button>
                     <div class="progress-bar">
                         <div id="progress" class="progress-fill"></div>
                     </div>
@@ -241,94 +238,11 @@ D. A hierarchy of objects.</pre>
                 </div>
             </div>
             </div>
-
-            <!-- AI Chat Sidebar -->
-            <div id="ai-chat-sidebar" class="ai-chat-sidebar hidden">
-                <div class="chat-header">
-                    <h3>💬 AI Study Helper</h3>
-                    <button id="chat-toggle-btn" class="chat-toggle-btn">Show</button>
-                </div>
-                <div id="chat-status" class="chat-status">
-                    ⚙️ Configure AI in settings to get help
-                </div>
-                <div id="chat-messages" class="chat-messages">
-                    <div class="chat-message system">
-                        👋 Hi! I'm your AI study assistant. Ask me anything about the current question!
-                    </div>
-                </div>
-                <div class="chat-quick-actions">
-                    <button class="quick-action-btn" data-action="explain">💡 Explain</button>
-                    <button class="quick-action-btn" data-action="hint">🎯 Give Hint</button>
-                    <button class="quick-action-btn" data-action="breakdown">🔍 Break Down</button>
-                    <button class="quick-action-btn" data-action="topic">📖 Topic</button>
-                </div>
-                <div class="chat-input-area">
-                    <div class="chat-input-group">
-                        <textarea id="chat-input" class="chat-input" placeholder="Ask a question..." rows="2"></textarea>
-                        <button id="chat-send-btn" class="chat-send-btn">Send</button>
-                    </div>
-                </div>
-            </div>
         </div>
 
-        <!-- AI Settings Modal -->
-        <div id="ai-settings-modal" class="modal-overlay hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>🤖 AI Assistant Settings</h2>
-                    <div class="security-warning">
-                        <strong>🔒 Security:</strong> Your API key is stored only in your browser's session (cleared when you close the browser). It is NEVER sent to our servers and only goes directly to your chosen AI provider.
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="ai-provider-select">Choose AI Provider:</label>
-                    <select id="ai-provider-select">
-                        <option value="">-- Select Provider --</option>
-                        <option value="openai">OpenAI (ChatGPT)</option>
-                        <option value="gemini">Google Gemini</option>
-                        <option value="groq">Groq (Free)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="ai-api-key-input">API Key:</label>
-                    <input type="password" id="ai-api-key-input" class="api-key-input" placeholder="Paste your API key here...">
-                    <small style="color: #666; margin-top: 5px; display: block;">
-                        🔑 Get your free API key from:
-                        <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #667eea; font-weight: 600;">OpenAI</a> |
-                        <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #667eea; font-weight: 600;">Google AI Studio</a> |
-                        <a href="https://console.groq.com/keys" target="_blank" style="color: #667eea; font-weight: 600;">Groq</a>
-                    </small>
-                    <button id="fetch-models-btn" class="btn btn-primary" style="margin-top: 10px; width: 100%;" disabled>
-                        🔄 Fetch Available Models
-                    </button>
-                </div>
-                <div class="form-group">
-                    <label for="ai-model-select">Choose Model:</label>
-                    <select id="ai-model-select" disabled>
-                        <option value="">-- Fetch models first --</option>
-                    </select>
-                    <div id="model-loading" style="display: none; color: #667eea; margin-top: 5px;">
-                        ⏳ Fetching models...
-                    </div>
-                    <small id="model-hint" style="color: #666; margin-top: 5px; display: block;">
-                        💡 Enter API key and click "Fetch Available Models" to see your options
-                    </small>
-                </div>
-                <div class="modal-actions">
-                    <button id="ai-settings-clear-btn" class="btn btn-danger">Clear</button>
-                    <button id="ai-settings-cancel-btn" class="btn btn-secondary">Cancel</button>
-                    <button id="ai-settings-save-btn" class="btn btn-primary">Save</button>
-                </div>
-            </div>
         </div>
-
-        <!-- AI Settings Button (Floating) -->
-        <button id="ai-settings-btn" class="ai-settings-btn">🤖 AI Settings</button>
-
-        <!-- Results Section -->
         <div id="results-section" class="section hidden">
-            <div class="results-with-chat-container">
-            <div class="results-main-content chat-hidden">
+            <div class="results-main-content">
             <h2>Quiz Results</h2>
             <div class="score-summary">
                 <div class="score-circle">
@@ -344,34 +258,6 @@ D. A hierarchy of objects.</pre>
                 <button id="restart-btn" class="btn btn-primary">Take New Quiz</button>
             </div>
             </div>
-
-            <!-- AI Chat Sidebar for Review -->
-            <div id="review-chat-sidebar" class="ai-chat-sidebar hidden">
-                <div class="chat-header">
-                    <h3>💬 Review Helper</h3>
-                    <button id="review-chat-toggle-btn" class="chat-toggle-btn">Show</button>
-                </div>
-                <div id="review-chat-status" class="chat-status">
-                    ⚙️ Configure AI in settings to get help
-                </div>
-                <div id="review-chat-messages" class="chat-messages">
-                    <div class="chat-message system">
-                        👋 I can help you understand your mistakes! Click on any incorrect answer to get detailed explanations.
-                    </div>
-                </div>
-                <div class="chat-quick-actions">
-                    <button class="review-quick-action-btn" data-action="summary">📊 Mistake Summary</button>
-                    <button class="review-quick-action-btn" data-action="concepts">📚 Key Concepts</button>
-                    <button class="review-quick-action-btn" data-action="study">💡 Study Tips</button>
-                </div>
-                <div class="chat-input-area">
-                    <div class="chat-input-group">
-                        <textarea id="review-chat-input" class="chat-input" placeholder="Ask about your mistakes..." rows="2"></textarea>
-                        <button id="review-chat-send-btn" class="chat-send-btn">Send</button>
-                    </div>
-                </div>
-            </div>
-            </div>
         </div>
     </div>
 
@@ -385,7 +271,6 @@ D. A hierarchy of objects.</pre>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     
     <!-- MVC Architecture -->
-    <script src="ai-helper.js?v=1.1.1"></script>
     <script src="models.js?v=1.0.5"></script>
     <script src="views.js?v=1.0.4"></script>
     <script src="controllers.js?v=1.1.0"></script>

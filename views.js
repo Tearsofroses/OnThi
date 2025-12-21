@@ -26,22 +26,6 @@ class QuizView {
         // Cache for shared quizzes to avoid data-attribute size limits
         this.sharedQuizzesCache = [];
         
-        // AI Chat elements
-        this.aiChatSidebar = document.getElementById('ai-chat-sidebar');
-        this.chatToggleBtn = document.getElementById('chat-toggle-btn');
-        this.chatStatus = document.getElementById('chat-status');
-        this.chatMessages = document.getElementById('chat-messages');
-        this.chatInput = document.getElementById('chat-input');
-        this.chatSendBtn = document.getElementById('chat-send-btn');
-        this.aiSettingsBtn = document.getElementById('ai-settings-btn');
-        this.aiSettingsModal = document.getElementById('ai-settings-modal');
-        this.aiProviderSelect = document.getElementById('ai-provider-select');
-        this.aiModelSelect = document.getElementById('ai-model-select');
-        this.aiApiKeyInput = document.getElementById('ai-api-key-input');
-        this.aiSettingsSaveBtn = document.getElementById('ai-settings-save-btn');
-        this.aiSettingsCancelBtn = document.getElementById('ai-settings-cancel-btn');
-        this.aiSettingsClearBtn = document.getElementById('ai-settings-clear-btn');
-        
         // Quiz elements
         this.questionText = document.getElementById('question-text');
         this.optionsContainer = document.getElementById('options-container');
@@ -369,61 +353,10 @@ class QuizView {
                     <span class="your-answer">Your answer: <strong>${userAnswer}</strong></span>
                     ${!isCorrect ? `<span class="correct-answer-label">Correct answer: <strong>${correctAnswer}</strong></span>` : '<span style="color: #28a745; font-weight: 600;">✓ Correct!</span>'}
                 </div>
-                ${!isCorrect ? `<div style="color: #667eea; font-size: 0.9em; margin-top: 10px; font-style: italic;">💬 Click to get AI explanation</div>` : ''}
             `;
-            
-            // Add click handler for incorrect answers
-            if (!isCorrect) {
-                reviewItem.addEventListener('click', () => {
-                    this.handleReviewItemClick(question, userAnswer, correctAnswer);
-                });
-            }
             
             this.reviewContainer.appendChild(reviewItem);
         });
-    }
-
-    handleReviewItemClick(question, userAnswer, correctAnswer) {
-        // Highlight selected item
-        document.querySelectorAll('.review-item').forEach(item => {
-            item.classList.remove('selected');
-        });
-        const selectedItem = document.querySelector(`.review-item[data-question-number="${question.number}"]`);
-        if (selectedItem) {
-            selectedItem.classList.add('selected');
-        }
-        
-        // Open chat sidebar if not already open
-        const sidebar = document.getElementById('review-chat-sidebar');
-        if (sidebar && !sidebar.classList.contains('open')) {
-            sidebar.classList.add('open');
-        }
-        
-        // Store selected question in controller for context
-        if (window.quizController) {
-            window.quizController.selectedReviewQuestion = {
-                text: question.text,
-                lo: question.lo,
-                number: question.number,
-                options: question.options,
-                userAnswer: userAnswer,
-                correctAnswer: correctAnswer
-            };
-            
-            // Auto-send explanation request
-            const input = document.getElementById('review-chat-input');
-            if (input) {
-                const correctOption = question.options.find(opt => opt.label === correctAnswer);
-                const userOption = question.options.find(opt => opt.label === userAnswer);
-                input.value = `Why is answer ${correctAnswer} (${correctOption?.text || ''}) correct instead of ${userAnswer} (${userOption?.text || ''})?`;
-                
-                // Trigger send
-                const sendBtn = document.getElementById('review-chat-send-btn');
-                if (sendBtn) {
-                    sendBtn.click();
-                }
-            }
-        }
     }
 
     // Get input value
@@ -493,123 +426,21 @@ class QuizView {
         return div.innerHTML;
     }
 
-    // AI Chat methods
-    updateChatStatus(isConfigured, provider = null) {
-        if (isConfigured) {
-            this.chatStatus.className = 'chat-status configured';
-            this.chatStatus.textContent = `✅ AI Ready (${provider})`;
-        } else {
-            this.chatStatus.className = 'chat-status';
-            this.chatStatus.textContent = '⚙️ Configure AI in settings to get help';
-        }
-    }
 
-    updateReviewChatStatus(isConfigured, provider = null) {
-        const reviewChatStatus = document.getElementById('review-chat-status');
-        if (!reviewChatStatus) return;
-        
-        if (isConfigured) {
-            reviewChatStatus.className = 'chat-status configured';
-            reviewChatStatus.textContent = `✅ AI Ready (${provider})`;
-        } else {
-            reviewChatStatus.className = 'chat-status';
-            reviewChatStatus.textContent = '⚙️ Configure AI in settings to get help';
-        }
-    }
 
-    addChatMessage(content, role = 'assistant') {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `chat-message ${role}`;
-        messageDiv.textContent = content;
-        this.chatMessages.appendChild(messageDiv);
-        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-    }
 
-    clearChat() {
-        this.chatMessages.innerHTML = `
-            <div class="chat-message system">
-                👋 Hi! I'm your AI study assistant. Ask me anything about the current question!
-            </div>
-        `;
-    }
 
-    setChatLoading(isLoading) {
-        this.chatSendBtn.disabled = isLoading;
-        this.chatInput.disabled = isLoading;
-        if (isLoading) {
-            this.chatSendBtn.textContent = '...';
-        } else {
-            this.chatSendBtn.textContent = 'Send';
-        }
-    }
 
-    toggleChatSidebar() {
-        const sidebar = this.aiChatSidebar;
-        const mainContent = document.querySelector('.quiz-main-content');
-        const isHidden = sidebar.classList.contains('hidden');
-        
-        if (isHidden) {
-            // Show chat
-            sidebar.classList.remove('hidden');
-            if (mainContent) mainContent.classList.remove('chat-hidden');
-            if (this.showChatBtn) this.showChatBtn.classList.add('hidden');
-            if (this.chatToggleBtn) this.chatToggleBtn.textContent = 'Hide';
-        } else {
-            // Hide chat
-            sidebar.classList.add('hidden');
-            if (mainContent) mainContent.classList.add('chat-hidden');
-            if (this.showChatBtn) this.showChatBtn.classList.remove('hidden');
-            if (this.chatToggleBtn) this.chatToggleBtn.textContent = 'Show';
-        }
-    }
 
-    showAISettings() {
-        this.aiSettingsModal.classList.remove('hidden');
-    }
 
-    hideAISettings() {
-        this.aiSettingsModal.classList.add('hidden');
-    }
 
-    getAIConfig() {
-        return {
-            provider: this.aiProviderSelect.value,
-            model: this.aiModelSelect.value,
-            apiKey: this.aiApiKeyInput.value
-        };
-    }
 
-    setAIConfig(provider, apiKey, model) {
-        this.aiProviderSelect.value = provider || '';
-        this.aiApiKeyInput.value = apiKey || '';
-        
-        // Trigger provider change to populate models
-        if (provider) {
-            this.updateModelOptions(provider);
-            this.aiModelSelect.value = model || '';
-        }
-    }
 
-    updateModelOptions(provider) {
-        const aiHelper = window.aiHelperInstance;
-        if (!aiHelper || !provider) {
-            this.aiModelSelect.disabled = true;
-            this.aiModelSelect.innerHTML = '<option value="">-- Select provider first --</option>';
-            return;
-        }
 
-        const models = aiHelper.getAvailableModels(provider);
-        this.aiModelSelect.disabled = false;
-        this.aiModelSelect.innerHTML = models.map(model => 
-            `<option value="${model.value}">${model.label}</option>`
-        ).join('');
-    }
 
-    clearAIForm() {
-        this.aiProviderSelect.value = '';
-        this.aiModelSelect.value = '';
-        this.aiModelSelect.disabled = true;
-        this.aiModelSelect.innerHTML = '<option value="">-- Select provider first --</option>';
-        this.aiApiKeyInput.value = '';
-    }
+
+
+
+
+
 }

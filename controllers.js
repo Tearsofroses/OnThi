@@ -10,7 +10,6 @@ class QuizController {
         this.currentQuestionIndex = 0;
         this.userAnswers = {};
         this.flaggedQuestions = new Set(); // Track flagged questions
-        this.aiHelper = new AIHelper();
         this.sessionsKey = 'quizSessions';
         this.currentSessionId = null;
         this.quizStartTime = null;
@@ -30,11 +29,8 @@ class QuizController {
             await this.model.init();
             await this.loadSharedQuizzes();
             await this.loadCourseSuggestions();
-            this.updateAIChatStatus();
-            this.updateReviewChatStatus();
             
-            // Make aiHelper and controller globally accessible for view
-            window.aiHelperInstance = this.aiHelper;
+            // Make controller globally accessible for view
             window.quizController = this;
         } catch (error) {
             console.error('Initialization error:', error);
@@ -421,27 +417,6 @@ Try Option 1 (ZIP) - it's the easiest!`);
             }
         }
         
-        // AI Chat event listeners
-        this.view.chatToggleBtn.addEventListener('click', () => this.view.toggleChatSidebar());
-        this.view.chatSendBtn.addEventListener('click', () => this.sendChatMessage());
-        this.view.chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.sendChatMessage();
-            }
-        });
-        
-        // Quick action buttons
-        document.querySelectorAll('.quick-action-btn').forEach(btn => {
-            btn.addEventListener('click', () => this.handleQuickAction(btn.dataset.action));
-        });
-        
-        // AI Settings
-        this.view.aiSettingsBtn.addEventListener('click', () => this.openAISettings());
-        this.view.aiSettingsSaveBtn.addEventListener('click', () => this.saveAISettings());
-        this.view.aiSettingsCancelBtn.addEventListener('click', () => this.view.hideAISettings());
-        this.view.aiSettingsClearBtn.addEventListener('click', () => this.clearAISettings());
-        
         // Fetch models button
         const fetchModelsBtn = document.getElementById('fetch-models-btn');
         if (fetchModelsBtn) {
@@ -625,16 +600,11 @@ Try Option 1 (ZIP) - it's the easiest!`);
 
     async verifyRecaptcha() {
         try {
-            // Check if reCAPTCHA is loaded
-            if (typeof grecaptcha === 'undefined') {
-                console.warn('reCAPTCHA not loaded, skipping verification');
-                return 'skip'; // Allow publishing if reCAPTCHA not configured
-            }
-            
-            return await grecaptcha.execute('6LfFVyksAAAAAHRZbip60OZY6h19WSAwrKojXlf5', { action: 'publish_quiz' });
+            // reCAPTCHA disabled to avoid third-party cookies
+            return 'skip';
         } catch (error) {
             console.error('reCAPTCHA error:', error);
-            return null;
+            return 'skip';
         }
     }
 
@@ -834,10 +804,6 @@ Try Option 1 (ZIP) - it's the easiest!`);
             this.quizStartTime = Date.now();
             this.elapsedTime = 0;
             this.startTimer();
-            
-            // Clear AI chat history for new quiz
-            this.aiHelper.clearHistory();
-            this.view.clearChat();
             
             // Show quiz section
             this.view.showSection(this.view.quizSection);
@@ -1577,92 +1543,7 @@ Number of questions: [YOUR NUMBER HERE]`;
     }
 
     // AI Chat Methods
-    updateAIChatStatus() {
-        const providerNames = {
-            'openai': 'ChatGPT',
-            'gemini': 'Gemini',
-            'groq': 'Groq'
-        };
-        const provider = providerNames[this.aiHelper.provider];
-        this.view.updateChatStatus(this.aiHelper.isConfigured(), provider);
-    }
 
-    updateReviewChatStatus() {
-        const providerNames = {
-            'openai': 'ChatGPT',
-            'gemini': 'Gemini',
-            'groq': 'Groq'
-        };
-        const provider = providerNames[this.aiHelper.provider];
-        this.view.updateReviewChatStatus(this.aiHelper.isConfigured(), provider);
-    }
-
-    async sendChatMessage() {
-        const message = this.view.chatInput.value.trim();
-        if (!message) return;
-
-        if (!this.aiHelper.isConfigured()) {
-            this.view.showAlert('Please configure AI in settings first!');
-            this.openAISettings();
-            return;
-        }
-
-        // Add user message to chat
-        this.view.addChatMessage(message, 'user');
-        this.view.chatInput.value = '';
-        this.view.setChatLoading(true);
-
-        try {
-            const currentQuestion = this.getCurrentQuestion();
-            const response = await this.aiHelper.sendMessage(message, currentQuestion);
-            this.view.addChatMessage(response, 'assistant');
-        } catch (error) {
-            this.view.addChatMessage('❌ Error: ' + error.message, 'system');
-            console.error('AI Chat error:', error);
-        } finally {
-            this.view.setChatLoading(false);
-        }
-    }
-
-    async handleQuickAction(action) {
-        if (!this.aiHelper.isConfigured()) {
-            this.view.showAlert('Please configure AI in settings first!');
-            this.openAISettings();
-            return;
-        }
-
-        let prompt;
-        switch (action) {
-            case 'explain':
-                prompt = this.aiHelper.getExplanationPrompt();
-                break;
-            case 'hint':
-                prompt = this.aiHelper.getHintPrompt();
-                break;
-            case 'breakdown':
-                prompt = this.aiHelper.getBreakdownPrompt();
-                break;
-            case 'topic':
-                prompt = this.aiHelper.getTopicPrompt();
-                break;
-            default:
-                return;
-        }
-
-        this.view.addChatMessage(prompt, 'user');
-        this.view.setChatLoading(true);
-
-        try {
-            const currentQuestion = this.getCurrentQuestion();
-            const response = await this.aiHelper.sendMessage(prompt, currentQuestion);
-            this.view.addChatMessage(response, 'assistant');
-        } catch (error) {
-            this.view.addChatMessage('❌ Error: ' + error.message, 'system');
-            console.error('AI Chat error:', error);
-        } finally {
-            this.view.setChatLoading(false);
-        }
-    }
 
     getCurrentQuestion() {
         if (!this.currentQuiz || !this.currentQuiz.questions[this.currentQuestionIndex]) {
@@ -1671,143 +1552,9 @@ Number of questions: [YOUR NUMBER HERE]`;
         return this.currentQuiz.questions[this.currentQuestionIndex];
     }
 
-    openAISettings() {
-        // Load current config
-        if (this.aiHelper.provider && this.aiHelper.apiKey) {
-            this.view.setAIConfig(this.aiHelper.provider, this.aiHelper.apiKey, this.aiHelper.model);
-        }
-        this.view.showAISettings();
-        this.updateFetchButtonState();
-    }
 
-    updateFetchButtonState() {
-        const fetchBtn = document.getElementById('fetch-models-btn');
-        const provider = document.getElementById('ai-provider-select').value;
-        const apiKey = document.getElementById('ai-api-key-input').value.trim();
-        
-        if (fetchBtn) {
-            fetchBtn.disabled = !provider || !apiKey || apiKey.length < 10;
-        }
-    }
 
-    async fetchAvailableModels() {
-        const provider = document.getElementById('ai-provider-select').value;
-        const apiKey = document.getElementById('ai-api-key-input').value.trim();
-        const modelSelect = document.getElementById('ai-model-select');
-        const loadingEl = document.getElementById('model-loading');
-        const hintEl = document.getElementById('model-hint');
-        const fetchBtn = document.getElementById('fetch-models-btn');
 
-        if (!provider || !apiKey) {
-            this.view.showAlert('Please select a provider and enter your API key first!');
-            return;
-        }
-
-        try {
-            // Show loading
-            if (loadingEl) {
-                loadingEl.style.display = 'block';
-                loadingEl.textContent = '⏳ Fetching models...';
-            }
-            if (hintEl) hintEl.style.display = 'none';
-            if (fetchBtn) fetchBtn.disabled = true;
-            modelSelect.innerHTML = '<option value="">Loading...</option>';
-
-            // Fetch models from API
-            const allModels = await this.aiHelper.fetchModelsFromAPI(provider, apiKey, false);
-
-            if (allModels.length === 0) {
-                throw new Error('No models found for this API key');
-            }
-
-            // Test each model
-            if (loadingEl) {
-                loadingEl.textContent = `🔍 Testing ${allModels.length} models for accessibility...`;
-            }
-
-            const workingModels = [];
-            for (let i = 0; i < allModels.length; i++) {
-                const model = allModels[i];
-                if (loadingEl) {
-                    loadingEl.textContent = `🔍 Testing ${i + 1}/${allModels.length}: ${model.label}`;
-                }
-                
-                const isAccessible = await this.aiHelper.testModel(provider, apiKey, model.value);
-                if (isAccessible) {
-                    workingModels.push(model);
-                }
-            }
-
-            if (workingModels.length === 0) {
-                throw new Error('None of the models are accessible with this API key. You may need to upgrade your account or check your permissions.');
-            }
-
-            // Populate dropdown with working models only
-            modelSelect.innerHTML = '<option value="">-- Select a model --</option>' +
-                workingModels.map(m => `<option value="${m.value}">${m.label}</option>`).join('');
-            modelSelect.disabled = false;
-
-            // Update hint
-            if (hintEl) {
-                const testedCount = allModels.length;
-                const accessibleCount = workingModels.length;
-                hintEl.textContent = `✅ Found ${accessibleCount} accessible model(s) out of ${testedCount} tested`;
-                hintEl.style.color = '#48bb78';
-                hintEl.style.display = 'block';
-            }
-
-        } catch (error) {
-            console.error('Error fetching models:', error);
-            this.view.showAlert('Failed to fetch models: ' + error.message + '\n\nPlease check your API key and try again.');
-            modelSelect.innerHTML = '<option value="">-- Fetch failed, try again --</option>';
-            if (hintEl) {
-                hintEl.textContent = '❌ Failed to fetch models. Check your API key.';
-                hintEl.style.color = '#e53e3e';
-                hintEl.style.display = 'block';
-            }
-        } finally {
-            if (loadingEl) loadingEl.style.display = 'none';
-            if (fetchBtn) fetchBtn.disabled = false;
-        }
-    }
-
-    saveAISettings() {
-        const config = this.view.getAIConfig();
-        
-        if (!config.provider) {
-            this.view.showAlert('Please select an AI provider!');
-            return;
-        }
-        
-        if (!config.model) {
-            this.view.showAlert('Please select a model!');
-            return;
-        }
-        
-        if (!config.apiKey || config.apiKey.trim().length < 10) {
-            this.view.showAlert('Please enter a valid API key!');
-            return;
-        }
-
-        this.aiHelper.saveConfig(config.provider, config.apiKey, config.model);
-        this.updateAIChatStatus();
-        this.updateReviewChatStatus();
-        this.view.hideAISettings();
-        this.view.showAlert('✅ AI Assistant configured successfully!');
-        this.view.clearChat();
-    }
-
-    clearAISettings() {
-        if (this.view.showConfirm('Clear AI configuration? Your API key will be removed from this session.')) {
-            this.aiHelper.clearConfig();
-            this.view.clearAIForm();
-            this.updateAIChatStatus();
-            this.updateReviewChatStatus();
-            this.view.hideAISettings();
-            this.view.clearChat();
-            this.view.showAlert('AI configuration cleared.');
-        }
-    }
 
     // Helper function to convert file to base64
     fileToBase64(file) {
